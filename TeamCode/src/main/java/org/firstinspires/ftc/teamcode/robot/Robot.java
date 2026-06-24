@@ -7,6 +7,7 @@ import org.firstinspires.ftc.teamcode.robot.subsystems.Drive;
 import org.firstinspires.ftc.teamcode.robot.subsystems.Hood;
 import org.firstinspires.ftc.teamcode.robot.subsystems.Intake;
 import org.firstinspires.ftc.teamcode.robot.subsystems.Shooter;
+import org.firstinspires.ftc.teamcode.robot.subsystems.Stopper;
 import org.firstinspires.ftc.teamcode.robot.subsystems.Turret;
 
 public class Robot {
@@ -15,6 +16,7 @@ public class Robot {
     public final Shooter shooter;
     public final Turret turret;
     public final Hood hood;
+    public final Stopper stopper;
 
     // ПУБЛИЧНЫЙ КОНСТРУКТОР: Создаем новые подсистемы при каждом вызове new Robot()
     public Robot() {
@@ -23,6 +25,7 @@ public class Robot {
         shooter = new Shooter();
         turret = new Turret();
         hood = new Hood();
+        stopper = new Stopper();
     }
 
     /**
@@ -36,6 +39,7 @@ public class Robot {
         shooter.init(hw);
         turret.init(hw);
         hood.init(hw);
+        stopper.init(hw);
     }
 
     public void periodic() {

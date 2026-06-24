@@ -45,6 +45,8 @@ public class Shooter {
 
         // Реверсируем один из моторов, если они стоят зеркально
         rightMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        rightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        leftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         // Отключаем встроенный ПИД, так как считаем свой в periodic()
         leftMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
