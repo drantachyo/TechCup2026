@@ -74,6 +74,9 @@ public class Drive {
     // ==========================================
     // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
     // ==========================================
+    public Follower getFollower() {
+        return follower;
+    }
 
     public void faceTarget(Pose targetPose) {
         Pose robotPose = follower.getPose();

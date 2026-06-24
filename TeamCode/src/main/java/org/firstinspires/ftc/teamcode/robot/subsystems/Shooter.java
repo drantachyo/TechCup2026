@@ -7,6 +7,7 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
+import com.qualcomm.robotcore.util.ElapsedTime; // Добавлен таймер
 
 // Импортируем наш собственный класс интерполяции
 import org.firstinspires.ftc.teamcode.robot.utils.LUT;
@@ -15,7 +16,11 @@ import org.firstinspires.ftc.teamcode.robot.utils.LUT;
 public class Shooter {
     private DcMotorEx leftMotor;
     private DcMotorEx rightMotor;
-    private VoltageSensor voltageSensor; // Для компенсации просадок батареи
+
+    // --- ПЕРЕМЕННЫЕ ДЛЯ КОМПЕНСАЦИИ НАПРЯЖЕНИЯ ---
+    private VoltageSensor voltageSensor;
+    private ElapsedTime voltageTimer;
+    private double lastVoltage = 12.0;
 
     public static double targetVelocity = 0;
 
@@ -28,7 +33,7 @@ public class Shooter {
     public static double speed2 = 1800;
 
     public static boolean isActivated = true;
-    public static boolean useVoltageComp = false;
+    public static boolean useVoltageComp = true; // Сразу включим компенсацию
 
     // Наша таблица дистанций
     public LUT shooterLut;
@@ -45,8 +50,10 @@ public class Shooter {
         leftMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         rightMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
-        // Датчик напряжения для компенсации
+        // --- ИНИЦИАЛИЗАЦИЯ НАПРЯЖЕНИЯ ---
         voltageSensor = hw.voltageSensor.iterator().next();
+        voltageTimer = new ElapsedTime();
+        lastVoltage = voltageSensor.getVoltage(); // Читаем первый раз при старте
 
         // Заполняем наш LUT (Дистанция -> Скорость маховика)
         shooterLut = new LUT();
@@ -75,9 +82,14 @@ public class Shooter {
 
     private void setPower(double power) {
         if (useVoltageComp) {
-            // Если батарея падает, пропорционально бустим мощность
-            double currentVoltage = voltageSensor.getVoltage();
-            power = power * (12.0 / currentVoltage);
+            // ЛЕНИВАЯ ПРОВЕРКА: Читаем датчик только 4 раза в секунду (каждые 250 мс)
+            if (voltageTimer.milliseconds() > 250) {
+                lastVoltage = voltageSensor.getVoltage();
+                voltageTimer.reset();
+            }
+
+            // Если батарея проседает (например до 11В), множитель будет > 1, и мы бустим мощность
+            power = power * (12.0 / lastVoltage);
         }
 
         // Предохранитель (клиппинг мощности от 0 до 1)
@@ -126,10 +138,12 @@ public class Shooter {
     }
 
     public double getVelocity() {
+        // Берем скорость только с одного мотора, так как они работают синхронно
         return leftMotor.getVelocity();
     }
 
     public boolean isAtTarget() {
+        // Если текущая скорость отличается от целевой меньше чем на 60 RPM — мы готовы к выстрелу
         return Math.abs(getTarget() - getVelocity()) < 60;
     }
 
