@@ -14,22 +14,22 @@ public class Turret {
     private PIDController pidController;
 
     // --- НАСТРОЙКИ ПИД ДЛЯ МОТОРА (Крутить в Panels) ---
-    public static double kP = 0.005;
+    public static double kP = 0.02;
     public static double kI = 0.0;
-    public static double kD = 0.0001;
+    public static double kD = 0.0006;
 
     // --- КОЭФФИЦИЕНТЫ ПЕРЕВОДА (Тюнить под ваш редуктор) ---
     // Сколько тиков энкодера приходится на 1 радиан поворота башни
-    public static double ticksPerRadian = 500.0;
+    public static double ticksPerRadian = 80;
 
     // Менеджер целей
     public static double targetTicks = 0;
 
     // --- БЕЗОПАСНОСТЬ (Чтобы не порвать провода) ---
     // Задай лимиты в тиках энкодера относительно нуля
-    public static int ticksMin = -1500;
-    public static int ticksMax = 1500;
-    public static double maxAngle = Math.toRadians(158); // Лимит в радианах
+    public static int ticksMin = -125;
+    public static int ticksMax = 125;
+    public static double maxAngle = Math.toRadians(90); // Лимит в радианах
 
     // rAM — коэффициент упреждения при вращении самого робота
     public static double rAM = -0.14;
