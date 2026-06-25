@@ -71,31 +71,37 @@ public class DecodeTeleOp extends DecodeOpMode {
         }
 
         // ==========================================
+        // ==========================================
         // 4. БАШНЯ - АВТОПРИЦЕЛ (Автоматика)
         // ==========================================
 
-        // Если зажат правый бампер — башня жестко лочит цель
+        // Если зажат правый бампер — башня жестко лочит цель, а шутер и худ настраиваются
         if (base.isDown(GamepadKeys.Button.RIGHT_BUMPER)) {
             // 1. Получаем предсказанную позицию через геттер
             Pose futureRobotPose = PoseController.getFuturePose(robot.drive.getFollower());
 
-// 2. Получаем угловую скорость вращения шасси
+            // 2. Получаем угловую скорость вращения шасси
             double angularVelocity = robot.drive.getFollower().getAngularVelocity();
 
-// 3. Отдаем в башню
+            // 3. Отдаем в башню
             robot.turret.face(targetPose, futureRobotPose, angularVelocity);
 
-// (Опционально) Блокировка выстрела, если мы не в зоне:
+            // 4. СЧИТАЕМ УПРЕЖДЕННУЮ ДИСТАНЦИЮ
+            // Используем метод distanceFrom, который есть в PedroPathing Pose (ты используешь его в PoseController)
+            double futureDistance = futureRobotPose.distanceFrom(targetPose);
+
+            // 5. Автоматически выставляем Худ и Шутер по будущей дистанции
+            robot.shooter.setDistance(futureDistance);
+            robot.hood.setDistance(futureDistance);
+
+            // (Опционально) Блокировка выстрела, если мы не в зоне:
             if (!PoseController.isInZone(robot.drive.getPose())) {
-                // Выводим предупреждение драйверу или программно глушим шутер
                 telemetry.addLine("WARNING: OUT OF LAUNCH ZONE!");
             }
         } else {
             // Если кнопку отпустили — башня смотрит прямо по курсу робота (0 градусов)
             robot.turret.setYaw(0);
         }
-
-        // ==========================================
         // 5. ТЕЛЕМЕТРИЯ
         // ==========================================
 
