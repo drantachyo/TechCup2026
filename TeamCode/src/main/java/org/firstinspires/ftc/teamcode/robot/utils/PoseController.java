@@ -10,7 +10,7 @@ public class PoseController {
 
     // Множитель времени предсказания (в секундах).
     // 0.7 означает "где робот будет через 0.7 секунд при текущей скорости"
-    public static double rVM = 0.7;
+    public static double rVM = 0.65;
 
     // ==========================================
     // 1. УПРЕЖДЕНИЕ ДВИЖЕНИЯ (KINEMATIC PREDICTION)

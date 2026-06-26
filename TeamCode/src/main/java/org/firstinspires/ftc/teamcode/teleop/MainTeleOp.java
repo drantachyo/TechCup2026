@@ -9,28 +9,24 @@ import org.firstinspires.ftc.teamcode.robot.utils.PoseController;
 @TeleOp(name = "Main Duo TeleOp", group = "Competition")
 public class MainTeleOp extends DecodeOpMode {
 
-    // Выбери нужный альянс (можно потом вынести в настройку Автонома)
-    private boolean isBlueAlliance = true;
+    private boolean isBlueAlliance = false;
 
-    // Координаты цели (корзины/хаба). Задай реальные координаты на поле!
-    // Пример: координаты красной цели (или синей).
-    private Pose targetPose = new Pose(144, 36, 0);
+    // Координаты цели (корзины/хаба)
+    private Pose targetPose = new Pose(144, 144, 0);
 
-    // Режим автонаведения оператора
     private boolean isAutoAiming = false;
 
     @Override
     public void onInit() {
-        // Здесь можно вывести что-то в телеметрию при инициализации
         telemetry.addLine("Ready to rumble!");
         telemetry.update();
     }
 
     @Override
     public void onStart() {
-        // Вызывается при нажатии PLAY
-        // Башня и шутер по умолчанию включены в режим ожидания
         robot.turret.on();
+        // Принудительно выключаем шутер на старте
+        robot.shooter.turnOff();
     }
 
     @Override
@@ -39,74 +35,93 @@ public class MainTeleOp extends DecodeOpMode {
         // 🕹️ ГЕЙМПАД 1: ШАССИ И ИНТЕЙК (Водитель)
         // ==========================================
 
-        // 1. Управление шасси (передаем весь геймпад прямо в твой метод)
+        // СБРОС НАПРАВЛЕНИЯ FIELD-CENTRIC (Кнопка START/OPTIONS)
+        if (base.wasJustPressed(GamepadKeys.Button.START)) {
+            Pose currentPose = robot.drive.getPose();
+            robot.drive.setPose(new Pose(currentPose.getX(), currentPose.getY(), 0));
+        }
+
+        // 1. Управление шасси
         robot.drive.drive(base, isBlueAlliance);
 
-        // 2. Управление интейком (Правый триггер - забрать, Левый - выплюнуть)
-        double intakePower = base.getTrigger(GamepadKeys.Trigger.RIGHT_TRIGGER) - base.getTrigger(GamepadKeys.Trigger.LEFT_TRIGGER);
-        robot.intake.setPower(intakePower);
-
-        // 3. Переключение Field-Centric режима (кнопка BACK/SELECT)
+        // 2. Переключение Field-Centric режима
         if (base.wasJustPressed(GamepadKeys.Button.BACK)) {
             robot.drive.toggleFieldCentric();
         }
 
-
         // ==========================================
-        // 🎯 ГЕЙМПАД 2: ШУТЕР, БАШНЯ, ХУД, СТОППЕР (Оператор)
+        // 🎯 ГЕЙМПАД 2: ШУТЕР, БАШНЯ, ХУД (Оператор)
         // ==========================================
 
-        // 1. Включение/выключение маховика шутера (Кнопка A)
+        // 1. Включение/выключение маховика шутера
         if (helper.wasJustPressed(GamepadKeys.Button.A)) {
             robot.shooter.toggle();
         }
 
-        // 2. Переключение режима авто-прицеливания (Кнопка B)
+        // 2. Переключение режима авто-прицеливания
         if (helper.wasJustPressed(GamepadKeys.Button.B)) {
             isAutoAiming = !isAutoAiming;
         }
 
-        // 3. Логика авто-наведения (Башня, Худ, Скорость)
+        // 3. Логика авто-наведения
         if (isAutoAiming) {
-            // Используем твой PoseController для предсказания позиции (стрельба на ходу)
             Pose futurePose = PoseController.getFuturePose(robot.drive.getFollower());
             Pose currentPose = robot.drive.getPose();
 
-            // Дистанция до цели
-            double distanceToTarget = currentPose.distanceFrom(targetPose);
+            // Безопасный расчет дистанции через встроенную математику Java (Math.hypot)
+            // Это тоже поможет избежать случайных ошибок с методами Pedro Pathing
+            double distanceToTarget = Math.hypot(targetPose.getX() - futurePose.getX(), targetPose.getY() - futurePose.getY());
 
-            // Наводим башню на цель (с учетом движения)
             robot.turret.face(targetPose, futurePose);
-
-            // Автоматически выставляем угол капюшона и скорость маховика по LUT-таблицам
             robot.hood.setDistance(distanceToTarget);
 
-            // Задаем скорость только если шутер включен
             if (robot.shooter.isActivated) {
                 robot.shooter.setDistance(distanceToTarget);
             }
         } else {
-            // Ручной сброс башни в центр, если автонаведение выключено
             robot.turret.setYaw(0);
         }
 
-        // 4. Стрельба / Стоппер (Правый бампер - R1)
-        // Если оператор зажал R1 И шутер разогнался до нужной скорости -> открываем заслонку
-        if (helper.getButton(GamepadKeys.Button.RIGHT_BUMPER) && robot.shooter.isAtTarget()) {
+        // ==========================================
+        // 🔄 ОБЪЕДИНЕННАЯ ЛОГИКА: СТОППЕР + ИНТЕЙК
+        // ==========================================
+
+        // 🔥 Интейк на кнопках Y (забрать) и A (выплюнуть)
+        double intakePower = 0;
+        if (base.getButton(GamepadKeys.Button.Y)) {
+            intakePower = 1.0;
+        } else if (base.getButton(GamepadKeys.Button.A)) {
+            intakePower = -1.0;
+        }
+
+        // 🔥 УСЛОВИЕ ВЫСТРЕЛА: Теперь работает мгновенно без проверок скорости
+        boolean isShooting = helper.getButton(GamepadKeys.Button.RIGHT_BUMPER);
+
+        if (isShooting) {
             robot.stopper.open();
+            // Перебиваем команду водителя: принудительно крутим интейк на 100%
+            intakePower = 1.0;
         } else {
             robot.stopper.close();
         }
 
+        // Применяем финальную мощность
+        robot.intake.setPower(intakePower);
 
         // ==========================================
-        // 📊 ТЕЛЕМЕТРИЯ ДЛЯ ДЕБАГА
+        // 📊 ТЕЛЕМЕТРИЯ
         // ==========================================
+        Pose currentPose = robot.drive.getPose();
+        Pose futurePose = PoseController.getFuturePose(robot.drive.getFollower());
+        telemetry.addData("🤖 Робот X", String.format("%.2f", currentPose.getX()));
+        telemetry.addData("🤖 Робот Y", String.format("%.2f", currentPose.getY()));
+        telemetry.addData("🤖 Угол (Градусы)", String.format("%.1f°", Math.toDegrees(currentPose.getHeading())));
+
+        // Предсказанная позиция (куда рассчитывается упреждение)
+        telemetry.addData("🔮 Будущий X", String.format("%.2f", futurePose.getX()));
+        telemetry.addData("🔮 Будущий Y", String.format("%.2f", futurePose.getY()));
         telemetry.addData("Shooter RPM", robot.shooter.getVelocity());
-        telemetry.addData("Shooter Target", robot.shooter.getTarget());
-        telemetry.addData("Shooter Ready?", robot.shooter.isAtTarget());
         telemetry.addData("Auto-Aim Active", isAutoAiming);
-        telemetry.addData("Turret Ticks", robot.turret.getCurrentTicks());
         telemetry.update();
     }
 }

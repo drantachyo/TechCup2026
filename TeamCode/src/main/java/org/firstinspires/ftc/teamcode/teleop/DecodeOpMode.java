@@ -39,13 +39,13 @@ public abstract class DecodeOpMode extends OpMode {
         // 1. СОЗДАЕМ АБСОЛЮТНО НОВОГО РОБОТА
         robot = new Robot();
 
-        // 2. РЕШАЕМ, КАКИЕ КООРДИНАТЫ ЕМУ ДАТЬ
+        // 2. РЕШАЕМ, КАКИЕ КООРДИНАТЫ ЕМУ ДАТЬ-*
         if (GlobalState.isAutoBeen) {
             // Берем координаты, которые оставил Автоном
             robot.init(hardwareMap, GlobalState.currentPose);
         } else {
             // Автонома не было: ставим жесткие координаты старта ТелеОпа
-            Pose teleopStartPose = new Pose(72, 72, Math.toRadians(0));
+            Pose teleopStartPose = new Pose(10.5, 8.5, 0);
             robot.init(hardwareMap, teleopStartPose);
         }
 

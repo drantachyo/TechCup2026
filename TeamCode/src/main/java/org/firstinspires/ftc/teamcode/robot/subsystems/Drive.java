@@ -16,7 +16,7 @@ public class Drive {
     private boolean isHoldingAngle = false;
 
     // Множитель скорости (для медленного режима)
-    public double speedMultiplier = 1.0;
+    public double speedMultiplier = 0.7;
 
     // ПИД для удержания угла прицеливания (настрой эти значения!)
     public static double kP = 1.0, kI = 0.0, kD = 0.1;
@@ -48,7 +48,10 @@ public class Drive {
         // 1. Считываем стики и применяем кубическую кривую для плавности (замена InputScaler)
         double forward = Math.pow(gamepad.getLeftY(), 3) * speedMultiplier;
         double strafe = Math.pow(-gamepad.getLeftX(), 3) * speedMultiplier; // Инвертируем X
-        double turn = Math.pow(-gamepad.getRightX(), 3) * speedMultiplier;
+        // 🔥 Поворот на триггерах (Левый L2 - крутит влево, Правый R2 - крутит вправо)
+        double leftTrigger = gamepad.getTrigger(GamepadKeys.Trigger.LEFT_TRIGGER);
+        double rightTrigger = gamepad.getTrigger(GamepadKeys.Trigger.RIGHT_TRIGGER);
+        double turn = Math.pow(leftTrigger - rightTrigger, 3) * speedMultiplier;
 
         // 2. Логика удержания угла (Авто-прицеливание)
         if (isHoldingAngle) {

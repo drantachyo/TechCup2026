@@ -66,7 +66,7 @@ public class Turret {
             double power = pidController.calculate(currentTicks, targetTicks);
 
             // Ограничиваем максимальную мощность башни (например, до 70%), чтобы она не дергалась слишком резко
-            power = Range.clip(power, -0.7, 0.7);
+            power = Range.clip(power, -1, 1);
 
             // Если мы уже очень близко к цели (ошибка меньше 3 тиков) — глушим мотор, чтобы не жужжал
             if (Math.abs(targetTicks - currentTicks) < 1) {
