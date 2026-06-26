@@ -12,7 +12,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.robot.Robot;
 import org.firstinspires.ftc.teamcode.robot.utils.GlobalState;
-import org.firstinspires.ftc.teamcode.robot.utils.MirrorTool; // 🔥 Не забудь этот импорт!
+import org.firstinspires.ftc.teamcode.robot.utils.MirrorTool;
 
 @Configurable
 @Autonomous(name = "🚀 Main Auto (Универсальный)", group = "Autonomous")
@@ -62,6 +62,9 @@ public class MainAutoSolo18 extends OpMode {
     public static double scoreWaitTime = 0.15;
     public static double idleIntakePower = 0.2;
 
+    // 🔥 Таймаут для защиты от застреваний (в секундах)
+    public static double pathTimeout = 5.0;
+
     private boolean readyToFire = false;
     private boolean arrivedAtPickup = false;
     private boolean isStabilizing = false;
@@ -89,7 +92,6 @@ public class MainAutoSolo18 extends OpMode {
     // 🛣️ СТРУКТУРА ПУТЕЙ
     // ==========================================
     public void buildPaths() {
-        // 🔥 Автоматически конвертируем все точки под выбранный альянс перед созданием путей
         Pose mStart = getPose(startPose);
         Pose mScore = getPose(scorePose);
         Pose mMid1 = getPose(MiddleBalls);
@@ -118,7 +120,7 @@ public class MainAutoSolo18 extends OpMode {
         scoreBall1 = follower.pathBuilder()
                 .addPath(new BezierLine(mMid1, mScore))
                 .setTangentHeadingInterpolation()
-                .setReversed(true) // 🔥 Исправлено на true
+                .setReversed() // 🔥 Убран аргумент true
                 .build();
 
         grabBall2 = follower.pathBuilder()
@@ -129,7 +131,7 @@ public class MainAutoSolo18 extends OpMode {
         scoreBall2 = follower.pathBuilder()
                 .addPath(new BezierLine(mGate1, mScore))
                 .setTangentHeadingInterpolation()
-                .setReversed(true)
+                .setReversed()
                 .build();
 
         grabBall3 = follower.pathBuilder()
@@ -140,7 +142,7 @@ public class MainAutoSolo18 extends OpMode {
         scoreBall3 = follower.pathBuilder()
                 .addPath(new BezierLine(mGate2, mScore))
                 .setTangentHeadingInterpolation()
-                .setReversed(true)
+                .setReversed()
                 .build();
 
         grabBall4 = follower.pathBuilder()
@@ -151,7 +153,7 @@ public class MainAutoSolo18 extends OpMode {
         scoreBall4 = follower.pathBuilder()
                 .addPath(new BezierLine(mFourth, mScore))
                 .setTangentHeadingInterpolation()
-                .setReversed(true)
+                .setReversed()
                 .build();
 
         grabBall5 = follower.pathBuilder()
@@ -162,7 +164,7 @@ public class MainAutoSolo18 extends OpMode {
         scoreBall5 = follower.pathBuilder()
                 .addPath(new BezierLine(mNear, mScore))
                 .setTangentHeadingInterpolation()
-                .setReversed(true)
+                .setReversed()
                 .build();
 
         park = follower.pathBuilder()
@@ -180,7 +182,6 @@ public class MainAutoSolo18 extends OpMode {
         scoreStabilizeTimer = new ElapsedTime();
 
         robot = new Robot();
-        // 🔥 Инициализируем робота в правильной стартовой точке
         robot.init(hardwareMap, getPose(startPose));
         follower = robot.drive.getFollower();
 
@@ -204,7 +205,6 @@ public class MainAutoSolo18 extends OpMode {
 
         Pose currentPose = follower.getPose();
 
-        // 🔥 Считаем цель для башни с учетом альянса
         Pose actualTarget = getPose(targetPose);
         double distanceToTarget = Math.hypot(actualTarget.getX() - currentPose.getX(), actualTarget.getY() - currentPose.getY());
 
@@ -263,7 +263,8 @@ public class MainAutoSolo18 extends OpMode {
             case 999:
                 robot.intake.setPower(0);
                 robot.shooter.turnOff();
-                if (!follower.isBusy()) {
+                // 🔥 Добавлен таймаут для парковки
+                if (!follower.isBusy() || pathTimer.seconds() > pathTimeout) {
                     requestOpModeStop();
                 }
                 break;
@@ -280,6 +281,7 @@ public class MainAutoSolo18 extends OpMode {
     // ==========================================
 
     private void handleFiring(int nextState, PathChain nextPath) {
+        // 🔥 Выстрел (score) ждет до победного без таймаутов
         if (!follower.isBusy() && !isStabilizing && !readyToFire) {
             isStabilizing = true;
             scoreStabilizeTimer.reset();
@@ -324,7 +326,15 @@ public class MainAutoSolo18 extends OpMode {
     }
 
     private void handlePickupWait(int nextState, PathChain nextPath, Pose currentTarget, double waitTime) {
-        if (!follower.isBusy() && !arrivedAtPickup) {
+        // 🔥 Проверяем: либо приехали, либо время вышло
+        boolean isDoneDriving = !follower.isBusy();
+        boolean isTimedOut = pathTimer.seconds() > pathTimeout;
+
+        if ((isDoneDriving || isTimedOut) && !arrivedAtPickup) {
+            if (isTimedOut) {
+                // Если робот застрял, принудительно обрываем путь шасси
+                follower.breakFollowing();
+            }
             intakeTimer.reset();
             arrivedAtPickup = true;
         }
@@ -332,7 +342,7 @@ public class MainAutoSolo18 extends OpMode {
         if (arrivedAtPickup && intakeTimer.seconds() > waitTime) {
             robot.intake.setPower(idleIntakePower);
             stopperTimer.reset();
-            follower.followPath(nextPath, true);
+            follower.followPath(nextPath, true); // true нужен для удержания конечной точки (holdEnd)
             arrivedAtPickup = false;
             setPathState(nextState);
         }
