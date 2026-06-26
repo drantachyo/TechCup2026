@@ -25,13 +25,12 @@ public class Shooter {
     public static double targetVelocity = 0;
 
     // Переменные для настройки в Panels
-    public static double kS = 0.07;
-    public static double kP = 0.004;
-    public static double kV1 = 0.000293;
-    public static double kV2 = 0.000317;
+    public static double kS = 0.015;
+    public static double kP = 0.007;
+    public static double kV1 = 0.00038;
+    public static double kV2 = 0.00038;
     public static double speed1 = 1100;
     public static double speed2 = 1800;
-
     public static boolean isActivated = true;
     public static boolean useVoltageComp = true; // Сразу включим компенсацию
 
@@ -48,6 +47,8 @@ public class Shooter {
         rightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         leftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
+
+
         // Отключаем встроенный ПИД, так как считаем свой в periodic()
         leftMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         rightMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -59,11 +60,14 @@ public class Shooter {
 
         // Заполняем наш LUT (Дистанция -> Скорость маховика)
         shooterLut = new LUT();
-        shooterLut.add(43.6, 980);
-        shooterLut.add(75.8, 1320);
-        shooterLut.add(102.6, 1360);
-        shooterLut.add(135.6, 1740);
-        shooterLut.add(150.6, 1840);
+        shooterLut.add(50, 1100);
+        shooterLut.add(60, 1200);
+        shooterLut.add(70, 1250);
+        shooterLut.add(80, 1250);
+        shooterLut.add(90, 1375);
+        shooterLut.add(100, 1400);
+        shooterLut.add(110, 1450);
+        shooterLut.add(120, 1500);
     }
 
     public void periodic() {

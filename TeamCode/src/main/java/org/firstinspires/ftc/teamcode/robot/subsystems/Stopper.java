@@ -9,8 +9,8 @@ public class Stopper {
     private Servo stopperServo;
 
     // Настрой эти позиции в Panels под вашу механику!
-    public static double OPEN_POS = 0.6;   // Позиция: проход открыт (для выстрела)
-    public static double CLOSED_POS = 0.2; // Позиция: проход закрыт (для езды и забора)
+    public static double OPEN_POS = 0.4;   // Позиция: проход открыт (для выстрела)
+    public static double CLOSED_POS = 0.7; // Позиция: проход закрыт (для езды и забора)
 
     public void init(HardwareMap hw) {
         // Убедитесь, что в конфигурации телефона серва называется "stopper"

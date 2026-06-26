@@ -20,11 +20,15 @@ public class Hood {
         // ПРИМЕР ЗНАЧЕНИЙ (тебе нужно будет найти свои):
         // 0.0 - капюшон максимально опущен (стреляем высоко вверх)
         // 1.0 - капюшон максимально поднят (стреляем прямо перед собой)
-        hoodLut.add(43.6, 0.25);
-        hoodLut.add(75.8, 0.40);
-        hoodLut.add(102.6, 0.55);
-        hoodLut.add(135.6, 0.65);
-        hoodLut.add(150.6, 0.75);
+        hoodLut = new LUT();
+        hoodLut.add(50, 0.7);
+        hoodLut.add(60, 0.55);
+        hoodLut.add(70, 0.45);
+        hoodLut.add(80, 0.4);
+        hoodLut.add(90, 0.35);
+        hoodLut.add(100, 0.3);
+        hoodLut.add(110, 0.3);
+        hoodLut.add(120, 0.3);
     }
 
     public void setPosition(double pos) {

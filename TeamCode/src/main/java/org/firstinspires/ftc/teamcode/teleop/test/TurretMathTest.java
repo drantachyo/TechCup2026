@@ -12,7 +12,7 @@ import org.firstinspires.ftc.teamcode.teleop.DecodeOpMode;
 public class TurretMathTest extends DecodeOpMode {
 
     // Координаты цели (например, корзина)
-    private final Pose targetPose = new Pose(133.6, 4.63, 3.09);
+    private final Pose targetPose = new Pose(144, 144, 0);
 
     @Override
     public void onInit() {

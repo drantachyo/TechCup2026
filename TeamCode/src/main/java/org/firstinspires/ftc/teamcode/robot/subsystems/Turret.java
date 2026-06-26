@@ -5,6 +5,7 @@ import com.arcrobotics.ftclib.controller.PIDController;
 import com.pedropathing.geometry.Pose;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.Range;
 
@@ -47,6 +48,7 @@ public class Turret {
 
         // Жестко тормозим мотор, когда на него не подается питание
         turretMotor.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+        turretMotor.setDirection(DcMotorSimple.Direction.REVERSE);
 
         // Инициализируем ПИД из официальной FTCLib
         pidController = new PIDController(kP, kI, kD);
@@ -67,7 +69,7 @@ public class Turret {
             power = Range.clip(power, -0.7, 0.7);
 
             // Если мы уже очень близко к цели (ошибка меньше 3 тиков) — глушим мотор, чтобы не жужжал
-            if (Math.abs(targetTicks - currentTicks) < 3) {
+            if (Math.abs(targetTicks - currentTicks) < 1) {
                 power = 0;
             }
 
