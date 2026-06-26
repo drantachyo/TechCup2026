@@ -9,7 +9,7 @@ import com.pedropathing.math.Vector;
 public class PoseController {
 
     // Множитель времени предсказания (в секундах).
-    // 0.7 означает "где робот будет через 0.7 секунд при текущей скорости"
+    // 0.65 означает "где робот будет через 0.65 секунд при текущей скорости"
     public static double rVM = 0.65;
 
     // ==========================================
@@ -40,42 +40,32 @@ public class PoseController {
     // 2. ГЕОЗОНИРОВАНИЕ (GEOFENCING)
     // ==========================================
 
-    // Координаты зон стрельбы (треугольники на поле)
+    // Координаты главной зоны стрельбы (большой треугольник на поле)
     // Формат: x1, y1, x2, y2, x3, y3
     private static final double[] closeLaunchZone = {144, 144, 72, 72, 0, 144};
-    private static final double[] farLaunchZone = {48, 0, 72, 24, 96, 0};
 
     public static boolean isInZone(Pose pose) {
-        return isPointInTriangle(pose.getX(), pose.getY(), closeLaunchZone) ||
-                isPointInTriangle(pose.getX(), pose.getY(), farLaunchZone);
+        // Проверяем нахождение только в большой зоне
+        return isPointInTriangle(pose.getX(), pose.getY(), closeLaunchZone);
     }
 
     // ==========================================
     // 3. ПРИТЯГИВАНИЕ К ЗОНЕ (SNAPPING)
     // ==========================================
 
-    public static Pose nearBigZonePose(Pose pose) {
-        if (isInZone(pose)) return pose;
+    public static Pose getNearestPose(Pose pose) {
+        // Если уже в зоне — никуда ехать не надо
+        if (isInZone(pose)) {
+            return pose;
+        }
+
+        // Математика притягивания к границе БОЛЬШОГО треугольника
         double x = 72 + (pose.getX() - pose.getY()) / 2;
         return new Pose(x, 144 - x, pose.getHeading());
     }
 
-    public static Pose nearSmallZonePose(Pose pose) {
-        if (isInZone(pose)) return pose;
-        double x = 24 + (pose.getX() + pose.getY()) / 2;
-        return new Pose(x, x - 48, pose.getHeading());
-    }
-
-    public static Pose getNearestPose(Pose pose) {
-        // Выбираем ближайшую из двух зон
-        if (pose.distanceFrom(nearBigZonePose(pose)) > pose.distanceFrom(nearSmallZonePose(pose))) {
-            return nearSmallZonePose(pose);
-        }
-        return nearBigZonePose(pose);
-    }
-
     // ==========================================
-    // ВНУТРЕННЯЯ МАТЕМАТИКА (Заменяет skeletonarmy.marrow)
+    // ВНУТРЕННЯЯ МАТЕМАТИКА
     // ==========================================
 
     private static boolean isPointInTriangle(double px, double py, double[] t) {
@@ -91,4 +81,5 @@ public class PoseController {
 
     private static double sign(double p1x, double p1y, double p2x, double p2y, double p3x, double p3y) {
         return (p1x - p3x) * (p2y - p3y) - (p2x - p3x) * (p1y - p3y);
-    }}
+    }
+}
