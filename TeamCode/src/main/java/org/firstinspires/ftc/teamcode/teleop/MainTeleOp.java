@@ -6,21 +6,20 @@ import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
+import org.firstinspires.ftc.teamcode.robot.utils.GlobalState;
+import org.firstinspires.ftc.teamcode.robot.utils.MirrorTool;
 import org.firstinspires.ftc.teamcode.robot.utils.PoseController;
 
 @TeleOp(name = "Main Duo TeleOp", group = "Competition")
 public class MainTeleOp extends DecodeOpMode {
-
-    // Выбор альянса
-    private boolean isBlueAlliance = true;
 
     // Хардкоженные координаты сброса на кнопку START
     // Запиши сюда реальные стартовые координаты!
     private final Pose HARDCODED_BLUE_POSE = new Pose(72, 72, 0);
     private final Pose HARDCODED_RED_POSE = new Pose(72, 72, Math.PI);
 
-    // Цель башни
-    private Pose targetPose = new Pose(144, 144, 0);
+    // Цель башни (По умолчанию КРАСНАЯ)
+    private final Pose baseTargetPose = new Pose(144, 144, 0);
 
     // Флаги состояний
     private boolean isAutoAiming = false;
@@ -46,13 +45,16 @@ public class MainTeleOp extends DecodeOpMode {
     public void onUpdate() {
         Pose currentPose = robot.drive.getPose();
 
+        // 🔥 Читаем альянс из глобальной памяти
+        boolean isBlue = GlobalState.isBlueAlliance;
+
         // ==========================================
         // 🕹️ ГЕЙМПАД 1: ШАССИ (Водитель)
         // ==========================================
 
         // 1. СБРОС POSЕ НА ХАРДКОД (Кнопка START)
         if (base.wasJustPressed(GamepadKeys.Button.START)) {
-            robot.drive.setPose(isBlueAlliance ? HARDCODED_BLUE_POSE : HARDCODED_RED_POSE);
+            robot.drive.setPose(isBlue ? HARDCODED_BLUE_POSE : HARDCODED_RED_POSE);
             gamepad1.rumble(200);
         }
 
@@ -63,7 +65,7 @@ public class MainTeleOp extends DecodeOpMode {
 
         // 3. АВТО-ПОВОРОТЫ (Динамика от альянса)
         Double snapAngle = null;
-        if (isBlueAlliance) {
+        if (isBlue) {
             if (base.wasJustPressed(GamepadKeys.Button.DPAD_UP)) snapAngle = Math.PI; // 180
             else if (base.wasJustPressed(GamepadKeys.Button.DPAD_RIGHT)) snapAngle = Math.PI / 2; // 90
             else if (base.wasJustPressed(GamepadKeys.Button.DPAD_DOWN)) snapAngle = 0.0; // 0
@@ -96,12 +98,20 @@ public class MainTeleOp extends DecodeOpMode {
                 base.getButton(GamepadKeys.Button.RIGHT_BUMPER); // Тормоз отменяет автоном
 
         if (base.wasJustPressed(GamepadKeys.Button.X) && !isAutoDrivingToZone) {
-            if (PoseController.isInZone(currentPose)) {
+            // 🔥 Передаем текущую позицию, чтобы контроллер понял, в зоне мы или нет
+            // Если мы синие, временно "зеркалим" позицию для контроллера геозон (если зоны прописаны только для красных)
+            Pose checkPose = isBlue ? MirrorTool.toBlue(currentPose) : currentPose;
+
+            if (PoseController.isInZone(checkPose)) {
                 gamepad1.rumble(300);
             } else {
-                Pose targetSnapped = PoseController.getNearestPose(currentPose);
+                Pose targetSnapped = PoseController.getNearestPose(checkPose);
+
+                // Зеркалим обратно, чтобы шасси поехало куда надо
+                Pose finalTarget = isBlue ? MirrorTool.toBlue(targetSnapped) : targetSnapped;
+
                 PathChain pathToZone = robot.drive.getFollower().pathBuilder()
-                        .addPath(new BezierLine(currentPose, targetSnapped))
+                        .addPath(new BezierLine(currentPose, finalTarget))
                         .setTangentHeadingInterpolation()
                         .build();
 
@@ -120,8 +130,8 @@ public class MainTeleOp extends DecodeOpMode {
                 isAutoDrivingToZone = false;
             }
         } else {
-            // Ручная езда (с учетом слоу-мода и тормоза внутри drive)
-            robot.drive.drive(base, isBlueAlliance);
+            // Ручная езда (передаем альянс для Field-Centric)
+            robot.drive.drive(base, isBlue);
         }
 
 
@@ -133,14 +143,17 @@ public class MainTeleOp extends DecodeOpMode {
             isAutoAiming = !isAutoAiming;
         }
 
+        // 🔥 Динамическая цель башни (Зеркалим для синих)
+        Pose actualTargetPose = isBlue ? MirrorTool.toBlue(baseTargetPose) : baseTargetPose;
+
         // Логика авто-наведения
         if (isAutoAiming) {
             Pose futurePose = PoseController.getFuturePose(robot.drive.getFollower());
-            double distanceToTarget = Math.hypot(targetPose.getX() - futurePose.getX(), targetPose.getY() - futurePose.getY());
+            double distanceToTarget = Math.hypot(actualTargetPose.getX() - futurePose.getX(), actualTargetPose.getY() - futurePose.getY());
 
-            robot.turret.face(targetPose, futurePose);
+            robot.turret.face(actualTargetPose, futurePose);
             robot.hood.setDistance(distanceToTarget);
-            robot.shooter.setDistance(distanceToTarget); // Шутер всегда работает, просто меняет обороты
+            robot.shooter.setDistance(distanceToTarget);
         } else {
             robot.turret.setYaw(0);
         }
@@ -149,22 +162,22 @@ public class MainTeleOp extends DecodeOpMode {
         boolean isOperatorShooting = false;
 
         if (helper.getButton(GamepadKeys.Button.X)) {
-            if (PoseController.isInZone(currentPose)) {
+            // Снова проверяем зону (с учетом зеркала для синих)
+            Pose checkPose = isBlue ? MirrorTool.toBlue(currentPose) : currentPose;
+            if (PoseController.isInZone(checkPose)) {
                 isOperatorShooting = true;
             } else {
-                // Легкая вибрация, чтобы оператор понял: "Мы не в зоне, стрелять нельзя!"
                 gamepad2.rumble(50);
             }
         }
 
         if (isOperatorShooting) {
             robot.stopper.open();
-            intakePower = 1.0; // Помогаем интейком затолкнуть мяч
+            intakePower = 1.0;
         } else {
             robot.stopper.close();
         }
 
-        // Финальная передача мощности на интейк
         robot.intake.setPower(intakePower);
 
         // ==========================================
@@ -172,8 +185,12 @@ public class MainTeleOp extends DecodeOpMode {
         // ==========================================
         telemetry.addData("Shooter RPM", robot.shooter.getVelocity());
         telemetry.addData("Auto-Aim", isAutoAiming ? "ON" : "OFF");
-        telemetry.addData("In Launch Zone?", PoseController.isInZone(currentPose) ? "YES ✅" : "NO ❌");
+
+        Pose checkPose = isBlue ? MirrorTool.toBlue(currentPose) : currentPose;
+        telemetry.addData("In Launch Zone?", PoseController.isInZone(checkPose) ? "YES ✅" : "NO ❌");
+
         telemetry.addData("Auto-Assist Driving", isAutoDrivingToZone ? "ACTIVE" : "STANDBY");
+        telemetry.addData("Alliance", isBlue ? "🟦 BLUE" : "🟥 RED");
         telemetry.update();
     }
 }

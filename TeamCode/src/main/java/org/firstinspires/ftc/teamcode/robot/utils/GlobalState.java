@@ -12,4 +12,7 @@ public class GlobalState {
 
     // Флаг: был ли запущен Автоном перед ТелеОпом
     public static boolean isAutoBeen = false;
+
+    // 🔥 Флаг альянса (false = Красный, true = Синий)
+    public static boolean isBlueAlliance = false;
 }
