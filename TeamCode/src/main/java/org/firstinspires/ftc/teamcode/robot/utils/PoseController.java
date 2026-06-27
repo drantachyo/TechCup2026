@@ -53,15 +53,37 @@ public class PoseController {
     // 3. ПРИТЯГИВАНИЕ К ЗОНЕ (SNAPPING)
     // ==========================================
 
+    // ==========================================
+    // 3. ПРИТЯГИВАНИЕ К ЗОНЕ (SNAPPING)
+    // ==========================================
+
     public static Pose getNearestPose(Pose pose) {
         // Если уже в зоне — никуда ехать не надо
         if (isInZone(pose)) {
             return pose;
         }
 
-        // Математика притягивания к границе БОЛЬШОГО треугольника
-        double x = 72 + (pose.getX() - pose.getY()) / 2;
-        return new Pose(x, 144 - x, pose.getHeading());
+        double px = pose.getX();
+        double py = pose.getY();
+
+        // 1. Считаем проекцию на ЛЕВУЮ грань (от 0 до 72 по оси X)
+        double x1 = 72.0 + (px - py) / 2.0;
+        x1 = Math.max(0.0, Math.min(72.0, x1)); // Запрещаем выходить за пределы отрезка
+        double y1 = 144.0 - x1;
+        double dist1 = Math.hypot(px - x1, py - y1);
+
+        // 2. Считаем проекцию на ПРАВУЮ грань (от 72 до 144 по оси X)
+        double x2 = (px + py) / 2.0;
+        x2 = Math.max(72.0, Math.min(144.0, x2)); // Запрещаем выходить за пределы отрезка
+        double y2 = x2;
+        double dist2 = Math.hypot(px - x2, py - y2);
+
+        // 3. Выбираем ту грань, к которой физически ближе ехать
+        if (dist1 < dist2) {
+            return new Pose(x1, y1, pose.getHeading());
+        } else {
+            return new Pose(x2, y2, pose.getHeading());
+        }
     }
 
     // ==========================================

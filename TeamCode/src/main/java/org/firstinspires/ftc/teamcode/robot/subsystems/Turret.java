@@ -15,22 +15,23 @@ public class Turret {
     private PIDController pidController;
 
     // --- НАСТРОЙКИ ПИД ДЛЯ МОТОРА (Крутить в Panels) ---
-    public static double kP = 0.02;
+    public static double kP = 0.023;
     public static double kI = 0.0;
-    public static double kD = 0.0006;
+
+    public static double kD = 0.0012;
 
     // --- КОЭФФИЦИЕНТЫ ПЕРЕВОДА (Тюнить под ваш редуктор) ---
     // Сколько тиков энкодера приходится на 1 радиан поворота башни
-    public static double ticksPerRadian = 80;
+    public static double ticksPerRadian = 81;
 
     // Менеджер целей
     public static double targetTicks = 0;
 
     // --- БЕЗОПАСНОСТЬ (Чтобы не порвать провода) ---
     // Задай лимиты в тиках энкодера относительно нуля
-    public static int ticksMin = -125;
-    public static int ticksMax = 125;
-    public static double maxAngle = Math.toRadians(90); // Лимит в радианах
+    public static int ticksMin = -187;
+    public static int ticksMax = 187;
+    public static double maxAngle = Math.toRadians(135); // Лимит в радианах
 
     // rAM — коэффициент упреждения при вращении самого робота
     public static double rAM = -0.14;
@@ -54,6 +55,7 @@ public class Turret {
         pidController = new PIDController(kP, kI, kD);
     }
 
+
     public void periodic() {
         if (isEnabled) {
             // Обновляем коэффициенты ПИД на лету из Panels
@@ -65,14 +67,11 @@ public class Turret {
             // Считаем мощность мотора через ПИД-регулятор
             double power = pidController.calculate(currentTicks, targetTicks);
 
-            // Ограничиваем максимальную мощность башни (например, до 70%), чтобы она не дергалась слишком резко
+            // Ограничиваем максимальную мощность башни, чтобы она не дергалась слишком резко
             power = Range.clip(power, -1, 1);
 
-            // Если мы уже очень близко к цели (ошибка меньше 3 тиков) — глушим мотор, чтобы не жужжал
-            if (Math.abs(targetTicks - currentTicks) < 1) {
-                power = 0;
-            }
-
+            // 🔥 Больше не глушим мотор! ПИД должен работать всегда,
+            // чтобы активно сопротивляться инерции шасси.
             turretMotor.setPower(power);
         } else {
             turretMotor.setPower(0);

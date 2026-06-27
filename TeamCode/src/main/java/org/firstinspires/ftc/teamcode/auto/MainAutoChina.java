@@ -37,14 +37,14 @@ public class MainAutoChina extends OpMode {
     private final Pose scorePose = new Pose(88.6, 79.63, -0.51);
 
     private final Pose MiddleBalls = new Pose(133, 59.37, 0);
-    private final Pose gateBalls = new Pose(131.41, 60.2, 0.568);
+    private final Pose gateBalls = new Pose(131.5, 59.5, 0.63);
     // 🔥 Точка ПЕРЕД первым гейтом (за 10-15 дюймов до цели)
-    private final Pose preGate1 = new Pose(115.0, 60.2, 0.568);
+    private final Pose preGate1 = new Pose(117.26, 60.27, -0.51);
 
-    private final Pose gateBalls2 = new Pose(131.41, 60.2, 0.568);
+    private final Pose gateBalls2 = new Pose(131.5, 59.5, 0.63);
     // 🔥 Точка ПЕРЕД вторым гейтом
-    private final Pose preGate2 = new Pose(115.0, 60.2, 0.568);
-    private final Pose FourthBall = new Pose(132, 36.7, 0);
+    private final Pose preGate2 = new Pose(117.26, 60.27, -0.51);
+    private final Pose FourthBall = new Pose(132, 37, 0);
     private final Pose NearBalls = new Pose(127, 83.25, 0);
 
     private final Pose endPose = new Pose(100, 60, 0);
@@ -54,12 +54,12 @@ public class MainAutoChina extends OpMode {
     public static Pose controlPoint2 = new Pose(100, 59);
     public static Pose controlPointGate2 = new Pose(100, 59);
     public static Pose controlPoint3 = new Pose(100, 36);
-    public static Pose controlPoint4 = new Pose(100, 80);
+    public static Pose controlPoint4 = new Pose(88, 80);
 
     // ==========================================
     // ⏱️ ТАЙМИНГИ И МОЩНОСТИ
     // ==========================================
-    public static double shootTime = 0.6;
+    public static double shootTime = 0.7;
     public static double stopperWaitTime = 0.3;
     public static double idleIntakePower = 0.2;
 
@@ -68,7 +68,7 @@ public class MainAutoChina extends OpMode {
 
     // 🔥 Настройки для умного забора с гейта
     public static double gatePickupTimeout = 3.0;
-    public static double jamRpmThreshold = 500.0;
+    public static double jamTpsThreshold = 1500.0; // TPS интейка!
 
     private boolean readyToFire = false;
     private boolean arrivedAtPickup = false;
@@ -101,12 +101,10 @@ public class MainAutoChina extends OpMode {
         Pose mStart = getPose(startPose);
         Pose mScore = getPose(scorePose);
         Pose mMid1 = getPose(MiddleBalls);
-
         Pose mPreGate1 = getPose(preGate1);
         Pose mGate1 = getPose(gateBalls);
         Pose mPreGate2 = getPose(preGate2);
         Pose mGate2 = getPose(gateBalls2);
-
         Pose mFourth = getPose(FourthBall);
         Pose mNear = getPose(NearBalls);
         Pose mEnd = getPose(endPose);
@@ -122,6 +120,7 @@ public class MainAutoChina extends OpMode {
                 .setLinearHeadingInterpolation(mStart.getHeading(), mScore.getHeading())
                 .build();
 
+        // 🔥 МЯЧ 1: MiddleBalls (Средний)
         grabBall1 = follower.pathBuilder()
                 .addPath(new BezierCurve(mScore, cp1, mMid1))
                 .setTangentHeadingInterpolation()
@@ -133,52 +132,54 @@ public class MainAutoChina extends OpMode {
                 .setReversed()
                 .build();
 
-        // 🔥 ОБНОВЛЕННЫЙ ПУТЬ: 1-Й ЗАЕЗД В ГЕЙТ
+        // 🔥 МЯЧ 2: NearBalls (Ближний)
         grabBall2 = follower.pathBuilder()
+                .addPath(new BezierCurve(mScore, cp4, mNear))
+                .setTangentHeadingInterpolation()
+                .build();
+
+        scoreBall2 = follower.pathBuilder()
+                .addPath(new BezierLine(mNear, mScore))
+                .setTangentHeadingInterpolation()
+                .setReversed()
+                .build();
+
+        // 🔥 МЯЧ 3: ЗАЕЗД В ГЕЙТ 1
+        grabBall3 = follower.pathBuilder()
                 .addPath(new BezierCurve(mScore, cp2, mPreGate1))
                 .setTangentHeadingInterpolation()
                 .addPath(new BezierLine(mPreGate1, mGate1))
                 .setLinearHeadingInterpolation(mPreGate1.getHeading(), mGate1.getHeading())
                 .build();
 
-        scoreBall2 = follower.pathBuilder()
+        scoreBall3 = follower.pathBuilder()
                 .addPath(new BezierLine(mGate1, mScore))
                 .setTangentHeadingInterpolation()
                 .setReversed()
                 .build();
 
-        // 🔥 ОБНОВЛЕННЫЙ ПУТЬ: 2-Й ЗАЕЗД В ГЕЙТ
-        grabBall3 = follower.pathBuilder()
+        // 🔥 МЯЧ 4: ЗАЕЗД В ГЕЙТ 2
+        grabBall4 = follower.pathBuilder()
                 .addPath(new BezierCurve(mScore, cpGate2, mPreGate2))
                 .setTangentHeadingInterpolation()
                 .addPath(new BezierLine(mPreGate2, mGate2))
                 .setLinearHeadingInterpolation(mPreGate2.getHeading(), mGate2.getHeading())
                 .build();
 
-        scoreBall3 = follower.pathBuilder()
+        scoreBall4 = follower.pathBuilder()
                 .addPath(new BezierLine(mGate2, mScore))
                 .setTangentHeadingInterpolation()
                 .setReversed()
                 .build();
 
-        grabBall4 = follower.pathBuilder()
+        // 🔥 МЯЧ 5: FourthBall (Дальний)
+        grabBall5 = follower.pathBuilder()
                 .addPath(new BezierCurve(mScore, cp3, mFourth))
                 .setTangentHeadingInterpolation()
                 .build();
 
-        scoreBall4 = follower.pathBuilder()
-                .addPath(new BezierLine(mFourth, mScore))
-                .setTangentHeadingInterpolation()
-                .setReversed()
-                .build();
-
-        grabBall5 = follower.pathBuilder()
-                .addPath(new BezierCurve(mScore, cp4, mNear))
-                .setTangentHeadingInterpolation()
-                .build();
-
         scoreBall5 = follower.pathBuilder()
-                .addPath(new BezierLine(mNear, mScore))
+                .addPath(new BezierLine(mFourth, mScore))
                 .setTangentHeadingInterpolation()
                 .setReversed()
                 .build();
@@ -263,35 +264,35 @@ public class MainAutoChina extends OpMode {
             case 2: handleStopperClose(3); break;
             case 3: handleIntakeDelay(4); break;
 
-            // 🔥 Линейный сбор (MiddleBalls)
+            // 🔥 Сбор 1: MiddleBalls (Линейный)
             case 4: handleLinePickup(5, scoreBall1); break;
 
             case 5: handleFiring(6, grabBall2); break;
             case 6: handleStopperClose(7); break;
             case 7: handleIntakeDelay(8); break;
 
-            // 🔥 Умный сбор с гейта (gateBalls)
-            case 8: handleGatePickup(9, scoreBall2, gatePickupTimeout, jamRpmThreshold); break;
+            // 🔥 Сбор 2: NearBalls (Линейный)
+            case 8: handleLinePickup(9, scoreBall2); break;
 
             case 9: handleFiring(10, grabBall3); break;
             case 10: handleStopperClose(11); break;
             case 11: handleIntakeDelay(12); break;
 
-            // 🔥 Умный сбор с гейта (gateBalls2)
-            case 12: handleGatePickup(13, scoreBall3, gatePickupTimeout, jamRpmThreshold); break;
+            // 🔥 Сбор 3: Gate 1 (Умный сбор)
+            case 12: handleGatePickup(13, scoreBall3, gatePickupTimeout, jamTpsThreshold); break;
 
             case 13: handleFiring(14, grabBall4); break;
             case 14: handleStopperClose(15); break;
             case 15: handleIntakeDelay(16); break;
 
-            // 🔥 Линейный сбор (FourthBall)
-            case 16: handleLinePickup(17, scoreBall4); break;
+            // 🔥 Сбор 4: Gate 2 (Умный сбор)
+            case 16: handleGatePickup(17, scoreBall4, gatePickupTimeout, jamTpsThreshold); break;
 
             case 17: handleFiring(18, grabBall5); break;
             case 18: handleStopperClose(19); break;
             case 19: handleIntakeDelay(20); break;
 
-            // 🔥 Линейный сбор (NearBalls)
+            // 🔥 Сбор 5: FourthBall (Линейный)
             case 20: handleLinePickup(21, scoreBall5); break;
 
             case 21: handleFiring(22, park); break;

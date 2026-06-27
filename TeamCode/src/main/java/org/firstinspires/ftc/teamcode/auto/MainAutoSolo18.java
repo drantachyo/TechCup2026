@@ -36,46 +36,46 @@ public class MainAutoSolo18 extends OpMode {
     private final Pose startPose = new Pose(118.5, 125.83, 0.7469);
     private final Pose scorePose = new Pose(88.6, 79.63, -0.51);
 
-    private final Pose MiddleBalls = new Pose(133, 59.37, 0);
-    private final Pose gateBalls = new Pose(131.41, 60.2, 0.568);
-    private final Pose gateBalls2 = new Pose(131.41, 60.2, 0.568);
-    private final Pose FourthBall = new Pose(132, 36.7, 0);
     private final Pose NearBalls = new Pose(127, 83.25, 0);
+    private final Pose MiddleBalls = new Pose(133, 59.37, 0);
 
-    private final Pose endPose = new Pose(100, 60, 0);
+    // 🔥 Координаты Гейтов (Едем прямо сюда и стоим)
+    private final Pose gateBalls = new Pose(133.5, 58.5, 0.5435);
+    private final Pose gateBalls2 = new Pose(133.5, 58.5, 0.5435);
+
+    private final Pose FourthBall = new Pose(133, 39, 0);
+    private final Pose endPose = new Pose(100, 45, 0);
 
     // Контрольные точки
-    public static Pose controlPoint1 = new Pose(90, 59);
-    public static Pose controlPoint2 = new Pose(100, 59);
-    public static Pose controlPointGate2 = new Pose(100, 59);
-    public static Pose controlPoint3 = new Pose(100, 36);
-    public static Pose controlPoint4 = new Pose(100, 80);
+    public static Pose controlPoint1 = new Pose(90, 59); // Для Middle
+    public static Pose controlPoint2 = new Pose(100, 59); // Для Gate 1
+    public static Pose controlPointGate2 = new Pose(100, 59); // Для Gate 2
+    public static Pose controlPoint3 = new Pose(85, 37); // Для Fourth
 
     // ==========================================
     // ⏱️ ТАЙМИНГИ И МОЩНОСТИ
     // ==========================================
-    public static double shootTime = 0.65;
+    public static double shootTime = 1.0;
     public static double stopperWaitTime = 0.3;
-    public static double idleIntakePower = 0.2;
 
-    // 🔥 Таймауты для защиты от застреваний
+    // Таймаут для защиты от застреваний (в секундах)
     public static double pathTimeout = 5.0;
 
-    // 🔥 Настройки для умного забора с гейта
+    // Настройки для умного забора с гейта
     public static double gatePickupTimeout = 3.0;
-    public static double jamRpmThreshold = 500.0;
+    public static double jamTpsThreshold = 1500; // TPS интейка!
 
     private boolean readyToFire = false;
     private boolean arrivedAtPickup = false;
-    private boolean isPreloadFired = false; // 🔥 Флаг первого выстрела
+    private boolean isPreloadFired = false;
 
     // Пути Pedro Pathing
     private PathChain scorePreload;
-    private PathChain grabBall1, scoreBall1;
-    private PathChain grabBall2, scoreBall2;
-    private PathChain grabBall3, scoreBall3;
-    private PathChain grabBall4, scoreBall4;
-    private PathChain grabBall5, scoreBall5;
+    private PathChain grabBall1, scoreBall1; // Near
+    private PathChain grabBall2, scoreBall2; // Middle
+    private PathChain grabBall3, scoreBall3; // Gate 1
+    private PathChain grabBall4, scoreBall4; // Gate 2
+    private PathChain grabBall5, scoreBall5; // Fourth
     private PathChain park;
 
     // ==========================================
@@ -94,75 +94,74 @@ public class MainAutoSolo18 extends OpMode {
     public void buildPaths() {
         Pose mStart = getPose(startPose);
         Pose mScore = getPose(scorePose);
+        Pose mNear = getPose(NearBalls);
         Pose mMid1 = getPose(MiddleBalls);
         Pose mGate1 = getPose(gateBalls);
         Pose mGate2 = getPose(gateBalls2);
         Pose mFourth = getPose(FourthBall);
-        Pose mNear = getPose(NearBalls);
         Pose mEnd = getPose(endPose);
 
         Pose cp1 = getPose(controlPoint1);
         Pose cp2 = getPose(controlPoint2);
         Pose cpGate2 = getPose(controlPointGate2);
         Pose cp3 = getPose(controlPoint3);
-        Pose cp4 = getPose(controlPoint4);
 
         scorePreload = follower.pathBuilder()
                 .addPath(new BezierLine(mStart, mScore))
                 .setLinearHeadingInterpolation(mStart.getHeading(), mScore.getHeading())
                 .build();
 
+        // 🔥 МЯЧ 1: NearBalls (Ближний)
         grabBall1 = follower.pathBuilder()
+                .addPath(new BezierLine(mScore, mNear))
+                .setTangentHeadingInterpolation()
+                .build();
+        scoreBall1 = follower.pathBuilder()
+                .addPath(new BezierLine(mNear, mScore))
+                .setTangentHeadingInterpolation()
+                .setReversed()
+                .build();
+
+        // 🔥 МЯЧ 2: MiddleBalls (Средний)
+        grabBall2 = follower.pathBuilder()
                 .addPath(new BezierCurve(mScore, cp1, mMid1))
                 .setTangentHeadingInterpolation()
                 .build();
-
-        scoreBall1 = follower.pathBuilder()
+        scoreBall2 = follower.pathBuilder()
                 .addPath(new BezierLine(mMid1, mScore))
                 .setTangentHeadingInterpolation()
                 .setReversed()
                 .build();
 
-        grabBall2 = follower.pathBuilder()
+        // 🔥 МЯЧ 3: ЗАЕЗД В ГЕЙТ 1
+        grabBall3 = follower.pathBuilder()
                 .addPath(new BezierCurve(mScore, cp2, mGate1))
                 .setLinearHeadingInterpolation(mScore.getHeading(), mGate1.getHeading())
                 .build();
-
-        scoreBall2 = follower.pathBuilder()
+        scoreBall3 = follower.pathBuilder()
                 .addPath(new BezierLine(mGate1, mScore))
                 .setTangentHeadingInterpolation()
                 .setReversed()
                 .build();
 
-        grabBall3 = follower.pathBuilder()
+        // 🔥 МЯЧ 4: ЗАЕЗД В ГЕЙТ 2
+        grabBall4 = follower.pathBuilder()
                 .addPath(new BezierCurve(mScore, cpGate2, mGate2))
                 .setLinearHeadingInterpolation(mScore.getHeading(), mGate2.getHeading())
                 .build();
-
-        scoreBall3 = follower.pathBuilder()
+        scoreBall4 = follower.pathBuilder()
                 .addPath(new BezierLine(mGate2, mScore))
                 .setTangentHeadingInterpolation()
                 .setReversed()
                 .build();
 
-        grabBall4 = follower.pathBuilder()
+        // 🔥 МЯЧ 5: FourthBall (Дальний)
+        grabBall5 = follower.pathBuilder()
                 .addPath(new BezierCurve(mScore, cp3, mFourth))
                 .setTangentHeadingInterpolation()
                 .build();
-
-        scoreBall4 = follower.pathBuilder()
-                .addPath(new BezierLine(mFourth, mScore))
-                .setTangentHeadingInterpolation()
-                .setReversed()
-                .build();
-
-        grabBall5 = follower.pathBuilder()
-                .addPath(new BezierCurve(mScore, cp4, mNear))
-                .setTangentHeadingInterpolation()
-                .build();
-
         scoreBall5 = follower.pathBuilder()
-                .addPath(new BezierLine(mNear, mScore))
+                .addPath(new BezierLine(mFourth, mScore))
                 .setTangentHeadingInterpolation()
                 .setReversed()
                 .build();
@@ -186,7 +185,7 @@ public class MainAutoSolo18 extends OpMode {
 
         buildPaths();
 
-        telemetry.addLine("Универсальный Автоном Готов!");
+        telemetry.addLine("Solo Автоном Готов!");
         telemetry.addData("Альянс", GlobalState.isBlueAlliance ? "🟦 СИНИЙ" : "🟥 КРАСНЫЙ");
         telemetry.update();
     }
@@ -205,16 +204,22 @@ public class MainAutoSolo18 extends OpMode {
         Pose currentPose = follower.getPose();
         Pose actualTarget = getPose(targetPose);
 
-        // 1. ДИНАМИКА ДЛЯ СЕРВОПРИВОДОВ (Башня и Худ)
-        double dynamicDistance = Math.hypot(actualTarget.getX() - currentPose.getX(), actualTarget.getY() - currentPose.getY());
+        // ==========================================
+        // 🔥 ДИНАМИКА ДЛЯ СЕРВОПРИВОДОВ
+        // ==========================================
+        if (pathState < 999) {
+            // Пока автоном работает — целимся в корзину
+            double dynamicDistance = Math.hypot(actualTarget.getX() - currentPose.getX(), actualTarget.getY() - currentPose.getY());
+            robot.turret.face(actualTarget, currentPose);
+            robot.hood.setDistance(dynamicDistance);
+        } else {
+            // Как только перешли в парковку (стейт 999) — возвращаем башню в ноль
+            robot.turret.setYaw(0);
+        }
 
-        robot.turret.face(actualTarget, currentPose);
-        robot.hood.setDistance(dynamicDistance);
-
-        // 2. СТАТИКА ДЛЯ МАХОВИКА (Мотор)
+        // СТАТИКА ДЛЯ МАХОВИКА (Мотор)
         Pose actualScorePose = getPose(scorePose);
         double staticScoreDistance = Math.hypot(actualTarget.getX() - actualScorePose.getX(), actualTarget.getY() - actualScorePose.getY());
-
         robot.shooter.setDistance(staticScoreDistance);
 
         autonomousPathUpdate();
@@ -227,18 +232,24 @@ public class MainAutoSolo18 extends OpMode {
 
     @Override
     public void stop() {
-        GlobalState.currentPose = follower.getPose();
+        Pose finalPose = follower.getPose();
+
+        // Сохраняем в обе переменные (на случай, если ты используешь их для разных целей)
+        GlobalState.currentPose = finalPose;
+        GlobalState.lastAutoPose = finalPose;
+
+        // Ставим флаг, что автоном успешно отработал
         GlobalState.isAutoBeen = true;
     }
 
     // ==========================================
-    // 🧠 КОНЧЕНЫЙ АВТОМАТ (STATE MACHINE)
+    // 🧠 КОНЕЧНЫЙ АВТОМАТ (STATE MACHINE)
     // ==========================================
     public void autonomousPathUpdate() {
         switch (pathState) {
             case 0:
                 robot.stopper.close();
-                robot.intake.setPower(idleIntakePower);
+                robot.intake.setPower(0); // 🛑 Интейк ВЫКЛЮЧЕН. Прелоуд внутри, батарея цела.
                 follower.followPath(scorePreload);
                 setPathState(1);
                 break;
@@ -247,35 +258,35 @@ public class MainAutoSolo18 extends OpMode {
             case 2: handleStopperClose(3); break;
             case 3: handleIntakeDelay(4); break;
 
-            // 🔥 Линейный сбор (без остановок)
+            // 🔥 Сбор 1: NearBalls
             case 4: handleLinePickup(5, scoreBall1); break;
 
             case 5: handleFiring(6, grabBall2); break;
             case 6: handleStopperClose(7); break;
             case 7: handleIntakeDelay(8); break;
 
-            // 🔥 Умный сбор с гейта (по RPM или таймауту)
-            case 8: handleGatePickup(9, scoreBall2, gatePickupTimeout, jamRpmThreshold); break;
+            // 🔥 Сбор 2: MiddleBalls
+            case 8: handleLinePickup(9, scoreBall2); break;
 
             case 9: handleFiring(10, grabBall3); break;
             case 10: handleStopperClose(11); break;
             case 11: handleIntakeDelay(12); break;
 
-            // 🔥 Умный сбор с гейта
-            case 12: handleGatePickup(13, scoreBall3, gatePickupTimeout, jamRpmThreshold); break;
+            // 🔥 Сбор 3: Gate 1 (Умный сбор по TPS)
+            case 12: handleGatePickup(13, scoreBall3, gatePickupTimeout, jamTpsThreshold); break;
 
             case 13: handleFiring(14, grabBall4); break;
             case 14: handleStopperClose(15); break;
             case 15: handleIntakeDelay(16); break;
 
-            // 🔥 Линейный сбор
-            case 16: handleLinePickup(17, scoreBall4); break;
+            // 🔥 Сбор 4: Gate 2 (Умный сбор по TPS)
+            case 16: handleGatePickup(17, scoreBall4, gatePickupTimeout, jamTpsThreshold); break;
 
             case 17: handleFiring(18, grabBall5); break;
             case 18: handleStopperClose(19); break;
             case 19: handleIntakeDelay(20); break;
 
-            // 🔥 Линейный сбор
+            // 🔥 Сбор 5: FourthBall
             case 20: handleLinePickup(21, scoreBall5); break;
 
             case 21: handleFiring(22, park); break;
@@ -301,29 +312,29 @@ public class MainAutoSolo18 extends OpMode {
     // ==========================================
 
     private void handleFiring(int nextState, PathChain nextPath) {
-        // 🔥 Ждем остановки шасси. Готовность шутера ждем ТОЛЬКО для прелоада.
-        if (!follower.isBusy() && !readyToFire) {
-            if (robot.shooter.isAtTarget() || isPreloadFired) {
-                firingTimer.reset();
-                readyToFire = true;
-            }
+        // Как только приехали на точку, запускаем таймер выстрела.
+        // Защита pathTimer.seconds() > 0.3 от ложных срабатываний на старте пути.
+        if (!follower.isBusy() && !readyToFire && pathTimer.seconds() > 0.3) {
+            readyToFire = true;
+            firingTimer.reset();
         }
 
         if (readyToFire) {
             robot.stopper.open();
-            robot.intake.setPower(1.0);
-        }
+            robot.intake.setPower(1.0); // Закидываем мяч в шутер
 
-        if (readyToFire && firingTimer.seconds() > shootTime) {
-            robot.stopper.close();
-            robot.intake.setPower(idleIntakePower);
-            follower.followPath(nextPath, true);
+            // Ждем shootTime и едем дальше
+            if (firingTimer.seconds() > shootTime) {
+                robot.stopper.close();
+                robot.intake.setPower(0); // 🛑 ВЫКЛЮЧАЕМ после выстрела!
+                follower.followPath(nextPath, true);
 
-            readyToFire = false;
-            isPreloadFired = true; // 🔥 Прелоад отстреляли, больше маховик не ждем
+                readyToFire = false;
+                isPreloadFired = true;
 
-            stopperTimer.reset();
-            setPathState(nextState);
+                stopperTimer.reset();
+                setPathState(nextState);
+            }
         }
     }
 
@@ -336,7 +347,7 @@ public class MainAutoSolo18 extends OpMode {
 
     private void handleIntakeDelay(int nextState) {
         if (stopperTimer.seconds() > stopperWaitTime) {
-            robot.intake.setPower(1.0);
+            robot.intake.setPower(1.0); // Включаем на 100% перед заездом в линию
             intakeTimer.reset();
             setPathState(nextState);
         }
@@ -348,45 +359,45 @@ public class MainAutoSolo18 extends OpMode {
         boolean isTimedOut = pathTimer.seconds() > pathTimeout;
 
         if (isDoneDriving || isTimedOut) {
-            if (isTimedOut) {
-                follower.breakFollowing();
-            }
+            if (isTimedOut) follower.breakFollowing();
+
             stopperTimer.reset();
             follower.followPath(nextPath, true);
             setPathState(nextState);
         }
     }
 
-    // 🔥 УМНЫЙ СБОР С ГЕЙТА (RPM и Таймер)
+    // 🔥 УМНЫЙ СБОР С ГЕЙТА (С проверкой даже в движении)
     private void handleGatePickup(int nextState, PathChain nextPath, double waitTimeout, double rpmThreshold) {
         boolean isDoneDriving = !follower.isBusy();
         boolean isPathTimedOut = pathTimer.seconds() > pathTimeout;
 
-        // 1. Шасси доехало до гейта
+        // 1. Проверяем зажевывание мяча ВСЕГДА. Ждем 0.5 сек для разгона мотора.
+        boolean isIntakeJammed = false;
+        if (pathTimer.seconds() > 0.5) {
+            isIntakeJammed = Math.abs(robot.intake.getVelocity()) < rpmThreshold;
+        }
+
+        // 2. Отмечаем прибытие на точку
         if ((isDoneDriving || isPathTimedOut) && !arrivedAtPickup) {
-            if (isPathTimedOut) {
-                follower.breakFollowing();
-            }
+            if (isPathTimedOut) follower.breakFollowing();
             intakeTimer.reset();
             arrivedAtPickup = true;
         }
 
-        // 2. Стоим у гейта и собираем
-        if (arrivedAtPickup) {
-            boolean isGateTimedOut = intakeTimer.seconds() > waitTimeout;
+        // 3. Таймер ожидания на точке
+        boolean isGateTimedOut = arrivedAtPickup && (intakeTimer.seconds() > waitTimeout);
 
-            boolean isIntakeJammed = false;
-            if (intakeTimer.seconds() > 0.5) {
-                isIntakeJammed = Math.abs(robot.intake.getVelocity()) < rpmThreshold;
-            }
+        // 4. ГЛАВНЫЙ ТРИГГЕР: Наелись мячей ИЛИ вышло время — едем скорить!
+        if (isIntakeJammed || isGateTimedOut) {
+            follower.breakFollowing(); // Обрываем путь к гейту, если поймали мяч в полете
+            robot.intake.setPower(1.0); // ✅ ЖЕСТКО 1.0, чтобы поднять мяч к стопперу во время езды
 
-            if (isGateTimedOut || isIntakeJammed) {
-                robot.intake.setPower(idleIntakePower); // Сбрасываем на удержание
-                stopperTimer.reset();
-                follower.followPath(nextPath, true);
-                arrivedAtPickup = false;
-                setPathState(nextState);
-            }
+            stopperTimer.reset();
+            follower.followPath(nextPath, true);
+
+            arrivedAtPickup = false;
+            setPathState(nextState);
         }
     }
 }

@@ -59,7 +59,7 @@ public class Drive {
             }
         }
 
-        // 2. Считываем стики (Повороты вернулись на Правый Стик!)
+        // 2. Считываем стики (Кубическая зависимость для плавности)
         double forward = Math.pow(gamepad.getLeftY(), 3) * currentSpeedMult;
         double strafe = Math.pow(-gamepad.getLeftX(), 3) * currentSpeedMult;
         double turn = Math.pow(-gamepad.getRightX(), 3) * currentSpeedMult;
@@ -75,18 +75,23 @@ public class Drive {
             double currentHeading = follower.getPose().getHeading();
             double error = snapTargetAngle - currentHeading;
 
+            // Нормализуем ошибку в пределы от -PI до PI
             while (error > Math.PI) error -= 2 * Math.PI;
             while (error <= -Math.PI) error += 2 * Math.PI;
 
-            turn = snapTurnController.calculate(0, error);
+            // 🔥 МАГИЯ D-КОМПОНЕНТА: Текущая позиция = -error, Цель = 0
+            turn = snapTurnController.calculate(-error, 0);
+
+            // Ограничиваем мощность поворота, чтобы мотор не сошел с ума
             turn = Math.max(-1.0, Math.min(1.0, turn));
         }
 
-        // 5. Передаем мощности
+        // 5. Передаем мощности на шасси
         if (isFieldCentric) {
             double allianceOffset = isBlueAlliance ? Math.PI : 0;
             follower.setTeleOpDrive(forward, strafe, turn, false, allianceOffset);
         } else {
+            // Robot-Centric
             follower.setTeleOpDrive(forward, strafe, turn, true);
         }
     }
@@ -96,7 +101,9 @@ public class Drive {
     // ==========================================
 
     public Follower getFollower() { return follower; }
+
     public void setSnapTarget(double angleRadians) { snapTargetAngle = angleRadians; }
+
     public void toggleFieldCentric() { isFieldCentric = !isFieldCentric; }
 
     public void holdCurrentPosition() {
@@ -104,5 +111,6 @@ public class Drive {
     }
 
     public void setPose(Pose pose) { follower.setPose(pose); }
+
     public Pose getPose() { return follower.getPose(); }
 }
