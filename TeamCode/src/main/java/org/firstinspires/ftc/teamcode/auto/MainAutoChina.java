@@ -15,8 +15,8 @@ import org.firstinspires.ftc.teamcode.robot.utils.GlobalState;
 import org.firstinspires.ftc.teamcode.robot.utils.MirrorTool;
 
 @Configurable
-@Autonomous(name = "🚀 Main Auto Solo 18", group = "Autonomous")
-public class MainAutoSolo18 extends OpMode {
+@Autonomous(name = "🚀 Main Auto (China inspo)", group = "Autonomous")
+public class MainAutoChina extends OpMode {
 
     private Robot robot;
     private Follower follower;
@@ -38,7 +38,12 @@ public class MainAutoSolo18 extends OpMode {
 
     private final Pose MiddleBalls = new Pose(133, 59.37, 0);
     private final Pose gateBalls = new Pose(131.41, 60.2, 0.568);
+    // 🔥 Точка ПЕРЕД первым гейтом (за 10-15 дюймов до цели)
+    private final Pose preGate1 = new Pose(115.0, 60.2, 0.568);
+
     private final Pose gateBalls2 = new Pose(131.41, 60.2, 0.568);
+    // 🔥 Точка ПЕРЕД вторым гейтом
+    private final Pose preGate2 = new Pose(115.0, 60.2, 0.568);
     private final Pose FourthBall = new Pose(132, 36.7, 0);
     private final Pose NearBalls = new Pose(127, 83.25, 0);
 
@@ -54,11 +59,11 @@ public class MainAutoSolo18 extends OpMode {
     // ==========================================
     // ⏱️ ТАЙМИНГИ И МОЩНОСТИ
     // ==========================================
-    public static double shootTime = 0.65;
+    public static double shootTime = 0.6;
     public static double stopperWaitTime = 0.3;
     public static double idleIntakePower = 0.2;
 
-    // 🔥 Таймауты для защиты от застреваний
+    // 🔥 Таймаут для защиты от застреваний (в секундах)
     public static double pathTimeout = 5.0;
 
     // 🔥 Настройки для умного забора с гейта
@@ -67,7 +72,8 @@ public class MainAutoSolo18 extends OpMode {
 
     private boolean readyToFire = false;
     private boolean arrivedAtPickup = false;
-    private boolean isPreloadFired = false; // 🔥 Флаг первого выстрела
+    // 🔥 Флажок для прелоада
+    private boolean isPreloadFired = false;
 
     // Пути Pedro Pathing
     private PathChain scorePreload;
@@ -95,8 +101,12 @@ public class MainAutoSolo18 extends OpMode {
         Pose mStart = getPose(startPose);
         Pose mScore = getPose(scorePose);
         Pose mMid1 = getPose(MiddleBalls);
+
+        Pose mPreGate1 = getPose(preGate1);
         Pose mGate1 = getPose(gateBalls);
+        Pose mPreGate2 = getPose(preGate2);
         Pose mGate2 = getPose(gateBalls2);
+
         Pose mFourth = getPose(FourthBall);
         Pose mNear = getPose(NearBalls);
         Pose mEnd = getPose(endPose);
@@ -123,9 +133,12 @@ public class MainAutoSolo18 extends OpMode {
                 .setReversed()
                 .build();
 
+        // 🔥 ОБНОВЛЕННЫЙ ПУТЬ: 1-Й ЗАЕЗД В ГЕЙТ
         grabBall2 = follower.pathBuilder()
-                .addPath(new BezierCurve(mScore, cp2, mGate1))
-                .setLinearHeadingInterpolation(mScore.getHeading(), mGate1.getHeading())
+                .addPath(new BezierCurve(mScore, cp2, mPreGate1))
+                .setTangentHeadingInterpolation()
+                .addPath(new BezierLine(mPreGate1, mGate1))
+                .setLinearHeadingInterpolation(mPreGate1.getHeading(), mGate1.getHeading())
                 .build();
 
         scoreBall2 = follower.pathBuilder()
@@ -134,9 +147,12 @@ public class MainAutoSolo18 extends OpMode {
                 .setReversed()
                 .build();
 
+        // 🔥 ОБНОВЛЕННЫЙ ПУТЬ: 2-Й ЗАЕЗД В ГЕЙТ
         grabBall3 = follower.pathBuilder()
-                .addPath(new BezierCurve(mScore, cpGate2, mGate2))
-                .setLinearHeadingInterpolation(mScore.getHeading(), mGate2.getHeading())
+                .addPath(new BezierCurve(mScore, cpGate2, mPreGate2))
+                .setTangentHeadingInterpolation()
+                .addPath(new BezierLine(mPreGate2, mGate2))
+                .setLinearHeadingInterpolation(mPreGate2.getHeading(), mGate2.getHeading())
                 .build();
 
         scoreBall3 = follower.pathBuilder()
@@ -232,7 +248,7 @@ public class MainAutoSolo18 extends OpMode {
     }
 
     // ==========================================
-    // 🧠 КОНЧЕНЫЙ АВТОМАТ (STATE MACHINE)
+    // 🧠 КОНЕЧНЫЙ АВТОМАТ (STATE MACHINE)
     // ==========================================
     public void autonomousPathUpdate() {
         switch (pathState) {
@@ -247,35 +263,35 @@ public class MainAutoSolo18 extends OpMode {
             case 2: handleStopperClose(3); break;
             case 3: handleIntakeDelay(4); break;
 
-            // 🔥 Линейный сбор (без остановок)
+            // 🔥 Линейный сбор (MiddleBalls)
             case 4: handleLinePickup(5, scoreBall1); break;
 
             case 5: handleFiring(6, grabBall2); break;
             case 6: handleStopperClose(7); break;
             case 7: handleIntakeDelay(8); break;
 
-            // 🔥 Умный сбор с гейта (по RPM или таймауту)
+            // 🔥 Умный сбор с гейта (gateBalls)
             case 8: handleGatePickup(9, scoreBall2, gatePickupTimeout, jamRpmThreshold); break;
 
             case 9: handleFiring(10, grabBall3); break;
             case 10: handleStopperClose(11); break;
             case 11: handleIntakeDelay(12); break;
 
-            // 🔥 Умный сбор с гейта
+            // 🔥 Умный сбор с гейта (gateBalls2)
             case 12: handleGatePickup(13, scoreBall3, gatePickupTimeout, jamRpmThreshold); break;
 
             case 13: handleFiring(14, grabBall4); break;
             case 14: handleStopperClose(15); break;
             case 15: handleIntakeDelay(16); break;
 
-            // 🔥 Линейный сбор
+            // 🔥 Линейный сбор (FourthBall)
             case 16: handleLinePickup(17, scoreBall4); break;
 
             case 17: handleFiring(18, grabBall5); break;
             case 18: handleStopperClose(19); break;
             case 19: handleIntakeDelay(20); break;
 
-            // 🔥 Линейный сбор
+            // 🔥 Линейный сбор (NearBalls)
             case 20: handleLinePickup(21, scoreBall5); break;
 
             case 21: handleFiring(22, park); break;
@@ -301,7 +317,7 @@ public class MainAutoSolo18 extends OpMode {
     // ==========================================
 
     private void handleFiring(int nextState, PathChain nextPath) {
-        // 🔥 Ждем остановки шасси. Готовность шутера ждем ТОЛЬКО для прелоада.
+        // 🔥 Ждем остановки шасси. Если это прелоад — ждем и маховик. Иначе лупим сразу.
         if (!follower.isBusy() && !readyToFire) {
             if (robot.shooter.isAtTarget() || isPreloadFired) {
                 firingTimer.reset();
@@ -320,7 +336,7 @@ public class MainAutoSolo18 extends OpMode {
             follower.followPath(nextPath, true);
 
             readyToFire = false;
-            isPreloadFired = true; // 🔥 Прелоад отстреляли, больше маховик не ждем
+            isPreloadFired = true; // 🔥 Прелоад отстреляли, больше не ждем!
 
             stopperTimer.reset();
             setPathState(nextState);
@@ -362,7 +378,6 @@ public class MainAutoSolo18 extends OpMode {
         boolean isDoneDriving = !follower.isBusy();
         boolean isPathTimedOut = pathTimer.seconds() > pathTimeout;
 
-        // 1. Шасси доехало до гейта
         if ((isDoneDriving || isPathTimedOut) && !arrivedAtPickup) {
             if (isPathTimedOut) {
                 follower.breakFollowing();
@@ -371,7 +386,6 @@ public class MainAutoSolo18 extends OpMode {
             arrivedAtPickup = true;
         }
 
-        // 2. Стоим у гейта и собираем
         if (arrivedAtPickup) {
             boolean isGateTimedOut = intakeTimer.seconds() > waitTimeout;
 
@@ -381,7 +395,7 @@ public class MainAutoSolo18 extends OpMode {
             }
 
             if (isGateTimedOut || isIntakeJammed) {
-                robot.intake.setPower(idleIntakePower); // Сбрасываем на удержание
+                robot.intake.setPower(idleIntakePower);
                 stopperTimer.reset();
                 follower.followPath(nextPath, true);
                 arrivedAtPickup = false;

@@ -13,7 +13,10 @@ public class Intake {
         intakeMotor.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
         intakeMotor.setDirection(DcMotorSimple.Direction.REVERSE);
     }
-
+    public double getVelocity() {
+        // Возвращает текущую скорость мотора в тиках в секунду (TPS)
+        return intakeMotor.getVelocity();
+    }
     public void setPower(double power) {
         intakeMotor.setPower(power);
     }
