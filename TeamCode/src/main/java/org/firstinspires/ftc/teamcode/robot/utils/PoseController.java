@@ -8,77 +8,77 @@ import com.pedropathing.math.Vector;
 @Configurable
 public class PoseController {
 
-    // Множитель времени предсказания (в секундах).
-    // 0.65 означает "где робот будет через 0.65 секунд при текущей скорости"
-    public static double rVM = 0.65;
+    public static double rVM = 0.7; // Значение из твоего кода
+
+    // 🔥 Возвращаем толеранс (буфер расширения зон в дюймах)
+    public static double zoneTolerance = 12.0;
 
     // ==========================================
-    // 1. УПРЕЖДЕНИЕ ДВИЖЕНИЯ (KINEMATIC PREDICTION)
+    // 1. УПРЕЖДЕНИЕ ДВИЖЕНИЯ
     // ==========================================
-
-    /**
-     * Возвращает будущую позицию робота на основе его текущей скорости.
-     * Именно ЭТУ позицию нужно использовать для авто-прицеливания башни на ходу!
-     */
     public static Pose getFuturePose(Follower follower) {
         return getFuturePose(follower, rVM);
     }
 
     public static Pose getFuturePose(Follower follower, double timePrediction) {
         Pose currentPose = follower.getPose();
-        // В Pedro Pathing getVelocity() возвращает Pose, где X и Y - это скорости.
         Vector velocity = follower.getVelocity();
 
         return new Pose(
                 currentPose.getX() + (velocity.getXComponent() * timePrediction),
                 currentPose.getY() + (velocity.getYComponent() * timePrediction),
-                currentPose.getHeading() // Направление оставляем текущим
+                currentPose.getHeading()
         );
     }
 
     // ==========================================
-    // 2. ГЕОЗОНИРОВАНИЕ (GEOFENCING)
+    // 2. БОЛЬШАЯ ЗОНА (closeLaunchZone)
     // ==========================================
-
-    // Координаты главной зоны стрельбы (большой треугольник на поле)
-    // Формат: x1, y1, x2, y2, x3, y3
-    private static final double[] closeLaunchZone = {144, 144, 72, 72, 0, 144};
-
     public static boolean isInZone(Pose pose) {
-        // Проверяем нахождение только в большой зоне
-        return isPointInTriangle(pose.getX(), pose.getY(), closeLaunchZone);
+        // Базовые точки: (144, 144), (72, 72), (0, 144) + расширение zoneTolerance
+        double[] expandedLaunchZone = {
+                144.0 + zoneTolerance, 144.0 + zoneTolerance,
+                72.0, 72.0 - zoneTolerance,
+                -zoneTolerance, 144.0 + zoneTolerance
+        };
+        return isPointInTriangle(pose.getX(), pose.getY(), expandedLaunchZone);
     }
 
     // ==========================================
-    // 3. ПРИТЯГИВАНИЕ К ЗОНЕ (SNAPPING)
+    // 3. МАЛЕНЬКАЯ ЗОНА (farLaunchZone)
     // ==========================================
+    public static boolean isInSmallZone(Pose pose) {
+        // Базовые точки: (48, 0), (72, 24), (96, 0) + расширение zoneTolerance
+        double[] expandedSmallZone = {
+                48.0 - zoneTolerance, -zoneTolerance,
+                72.0, 24.0 + zoneTolerance,
+                96.0 + zoneTolerance, -zoneTolerance
+        };
+        return isPointInTriangle(pose.getX(), pose.getY(), expandedSmallZone);
+    }
 
     // ==========================================
-    // 3. ПРИТЯГИВАНИЕ К ЗОНЕ (SNAPPING)
+    // 4. ПРИТЯГИВАНИЕ К ЗОНЕ (SNAPPING - ТОЛЬКО БОЛЬШАЯ)
     // ==========================================
-
     public static Pose getNearestPose(Pose pose) {
-        // Если уже в зоне — никуда ехать не надо
-        if (isInZone(pose)) {
-            return pose;
-        }
-
         double px = pose.getX();
         double py = pose.getY();
 
-        // 1. Считаем проекцию на ЛЕВУЮ грань (от 0 до 72 по оси X)
+        // 🔥 ПРОЕКЦИЯ ТОЛЬКО НА БОЛЬШУЮ ЗОНУ (closeLaunchZone)
+
+        // 1. Левая грань большой зоны
         double x1 = 72.0 + (px - py) / 2.0;
-        x1 = Math.max(0.0, Math.min(72.0, x1)); // Запрещаем выходить за пределы отрезка
+        x1 = Math.max(0.0, Math.min(72.0, x1));
         double y1 = 144.0 - x1;
         double dist1 = Math.hypot(px - x1, py - y1);
 
-        // 2. Считаем проекцию на ПРАВУЮ грань (от 72 до 144 по оси X)
+        // 2. Правая грань большой зоны
         double x2 = (px + py) / 2.0;
-        x2 = Math.max(72.0, Math.min(144.0, x2)); // Запрещаем выходить за пределы отрезка
+        x2 = Math.max(72.0, Math.min(144.0, x2));
         double y2 = x2;
         double dist2 = Math.hypot(px - x2, py - y2);
 
-        // 3. Выбираем ту грань, к которой физически ближе ехать
+        // Возвращаем ближайшую точку только на гранях большой зоны
         if (dist1 < dist2) {
             return new Pose(x1, y1, pose.getHeading());
         } else {
@@ -87,9 +87,8 @@ public class PoseController {
     }
 
     // ==========================================
-    // ВНУТРЕННЯЯ МАТЕМАТИКА
+    // ВНУТРЕННЯЯ МАТЕМАТИКА ТРЕУГОЛЬНИКОВ
     // ==========================================
-
     private static boolean isPointInTriangle(double px, double py, double[] t) {
         double d1 = sign(px, py, t[0], t[1], t[2], t[3]);
         double d2 = sign(px, py, t[2], t[3], t[4], t[5]);

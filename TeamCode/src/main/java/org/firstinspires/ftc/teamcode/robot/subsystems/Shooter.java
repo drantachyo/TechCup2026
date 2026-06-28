@@ -1,15 +1,14 @@
 package org.firstinspires.ftc.teamcode.robot.subsystems;
 
-// Импортируем аннотацию ByLazar Panels вместо Acme Dashboard
 import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
-import com.qualcomm.robotcore.util.ElapsedTime; // Добавлен таймер
+import com.qualcomm.robotcore.util.ElapsedTime;
 
-// Импортируем наш собственный класс интерполяции
+// Наш класс интерполяции
 import org.firstinspires.ftc.teamcode.robot.utils.LUT;
 
 @Configurable
@@ -24,7 +23,7 @@ public class Shooter {
 
     public static double targetVelocity = 0;
 
-    // Переменные для настройки в Panels
+    // Настройки в Panels
     public static double kS = 0.015;
     public static double kP = 0.007;
     public static double kV1 = 0.00038;
@@ -32,54 +31,62 @@ public class Shooter {
     public static double speed1 = 1100;
     public static double speed2 = 1800;
     public static boolean isActivated = true;
-    public static boolean useVoltageComp = true; // Сразу включим компенсацию
+    public static boolean useVoltageComp = true;
 
-    // Наша таблица дистанций
+    // 🔥 ЕДИНАЯ ТАБЛИЦА ДИСТАНЦИЙ (Pre-spinning)
     public LUT shooterLut;
 
     public void init(HardwareMap hw) {
-        // Инициализация моторов
         leftMotor = hw.get(DcMotorEx.class, "sl");
         rightMotor = hw.get(DcMotorEx.class, "sr");
 
-        // Реверсируем один из моторов, если они стоят зеркально
         rightMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         leftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
 
         rightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         leftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
-
-
-        // Отключаем встроенный ПИД, так как считаем свой в periodic()
         leftMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         rightMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
         // --- ИНИЦИАЛИЗАЦИЯ НАПРЯЖЕНИЯ ---
         voltageSensor = hw.voltageSensor.iterator().next();
         voltageTimer = new ElapsedTime();
-        lastVoltage = voltageSensor.getVoltage(); // Читаем первый раз при старте
+        lastVoltage = voltageSensor.getVoltage();
 
-        // Заполняем наш LUT (Дистанция -> Скорость маховика)
+        // ==========================================
+        // 🎯 КАЛИБРОВКА ЕДИНОГО LUT
+        // Вписываем ВСЕ дистанции: от самой ближней точки до самой дальней.
+        // Значения ниже - примерные, откалибруйте их на практике!
+        // ==========================================
         shooterLut = new LUT();
+
+        // Зона в упор (Close Zone)
+        shooterLut.add(40, 1050);
         shooterLut.add(50, 1100);
         shooterLut.add(60, 1200);
         shooterLut.add(70, 1250);
-        shooterLut.add(80, 1250);
+
+        // Транзитная зона (между треугольниками)
+        shooterLut.add(80, 1300);
         shooterLut.add(90, 1375);
-        shooterLut.add(100, 1400);
-        shooterLut.add(110, 1450);
-        shooterLut.add(120, 1500);
+        shooterLut.add(100, 1450);
+
+        // Дальняя зона (Small Far Zone)
+        shooterLut.add(110, 1500);
+        shooterLut.add(120, 1550);
+        shooterLut.add(130, 1600);
+        shooterLut.add(140, 1650);
     }
 
     public void periodic() {
         if (isActivated && targetVelocity > 0) {
             double currentVel = getVelocity();
 
-            // Интерполяция коэффициента kV в реальном времени
+            // Динамический расчет Feedforward
             double interpolated_kV = kV1 + (targetVelocity - speed1) / (speed2 - speed1) * (kV2 - kV1);
 
-            // Расчет итоговой мощности: Feedforward + PID-коррекция + преодоление статического трения
+            // Итоговая мощность = Feedforward + ПИД + Статическое трение
             double power = (interpolated_kV * targetVelocity) + (kP * (targetVelocity - currentVel)) + kS;
 
             setPower(power);
@@ -90,17 +97,16 @@ public class Shooter {
 
     private void setPower(double power) {
         if (useVoltageComp) {
-            // ЛЕНИВАЯ ПРОВЕРКА: Читаем датчик только 4 раза в секунду (каждые 250 мс)
+            // Читаем датчик каждые 250 мс для экономии ресурсов шины I2C
             if (voltageTimer.milliseconds() > 250) {
                 lastVoltage = voltageSensor.getVoltage();
                 voltageTimer.reset();
             }
-
-            // Если батарея проседает (например до 11В), множитель будет > 1, и мы бустим мощность
+            // Пропорционально повышаем мощность при просадке батареи
             power = power * (12.0 / lastVoltage);
         }
 
-        // Предохранитель (клиппинг мощности от 0 до 1)
+        // Защита от превышения лимитов
         power = Math.max(0.0, Math.min(1.0, power));
 
         leftMotor.setPower(power);
@@ -131,7 +137,8 @@ public class Shooter {
     }
 
     /**
-     * Автоматически выставляет скорость шутера по расстоянию до цели через LUT
+     * 🔥 Теперь Шутер берет обороты исключительно из дистанции.
+     * Робот начнет разгон (Pre-spin) еще до заезда в зону!
      */
     public void setDistance(double targetDistance) {
         setTargetVelocity(shooterLut.get(targetDistance));
@@ -146,12 +153,11 @@ public class Shooter {
     }
 
     public double getVelocity() {
-        // Берем скорость только с одного мотора, так как они работают синхронно
         return leftMotor.getVelocity();
     }
 
     public boolean isAtTarget() {
-        // Если текущая скорость отличается от целевой меньше чем на 60 RPM — мы готовы к выстрелу
+        // Погрешность в 60 RPM считается допустимой для выстрела
         return Math.abs(getTarget() - getVelocity()) < 60;
     }
 

@@ -18,7 +18,7 @@ public class Drive {
     private boolean wasBraking = false; // Флаг для режима "вкопаться"
 
     // ПИД для авто-поворота на углы (Snap-to-Angle)
-    public static double turnP = 1.2, turnI = 0.0, turnD = 0.05;
+    public static double turnP = 1.2, turnI = 0.0, turnD = 0.1;
 
     private PIDController snapTurnController;
     private Double snapTargetAngle = null;
@@ -62,7 +62,7 @@ public class Drive {
         // 2. Считываем стики (Кубическая зависимость для плавности)
         double forward = Math.pow(gamepad.getLeftY(), 3) * currentSpeedMult;
         double strafe = Math.pow(-gamepad.getLeftX(), 3) * currentSpeedMult;
-        double turn = Math.pow(-gamepad.getRightX(), 3) * currentSpeedMult;
+        double turn = Math.pow(-gamepad.getRightX(), 3) * currentSpeedMult * 0.7;
 
         // 3. Отмена авто-поворота при ручном вмешательстве
         if (Math.abs(turn) > 0.05) {
