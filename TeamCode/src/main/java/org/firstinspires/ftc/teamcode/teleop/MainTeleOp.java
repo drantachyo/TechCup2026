@@ -11,7 +11,7 @@ import org.firstinspires.ftc.teamcode.robot.utils.GlobalState;
 import org.firstinspires.ftc.teamcode.robot.utils.MirrorTool;
 import org.firstinspires.ftc.teamcode.robot.utils.PoseController;
 
-@TeleOp(name = "Main Duo TeleOp", group = "Competition")
+@TeleOp(name = "Main Solo TeleOp", group = "Competition")
 public class MainTeleOp extends DecodeOpMode {
 
     // 1. Координаты для старта (если автонома НЕ БЫЛО)
@@ -35,7 +35,7 @@ public class MainTeleOp extends DecodeOpMode {
 
     @Override
     public void onInit() {
-        telemetry.addLine("Ready to rumble!");
+        telemetry.addLine("Ready for Solo Drive!");
 
         boolean isBlue = GlobalState.isBlueAlliance;
         telemetry.addData("Выбранный Альянс", isBlue ? "🟦 СИНИЙ" : "🟥 КРАСНЫЙ");
@@ -66,7 +66,7 @@ public class MainTeleOp extends DecodeOpMode {
         Pose currentPose = robot.drive.getPose();
         boolean isBlue = GlobalState.isBlueAlliance;
 
-        // 🔥 Инициализируем базовые значения интейка (Зажатие Правого Бампера или кнопки А)
+        // 🔥 Инициализируем базовые значения интейка
         double intakePower = idleIntakePower;
         if (base.getButton(GamepadKeys.Button.RIGHT_BUMPER)) {
             intakePower = 1.0;
@@ -76,13 +76,20 @@ public class MainTeleOp extends DecodeOpMode {
 
         boolean forceOpenStopper = false;
 
-        // Расчет текущей зоны (используется и водителем, и оператором, и в телеметрии)
+        // ==========================================
+        // 🕹️ ГЕЙМПАД 1: СВОБОДНАЯ СТРЕЛЬБА (Правый Триггер)
+        // ==========================================
+        if (gamepad1.right_trigger > 0.3) {
+            forceOpenStopper = true; // Ручной выстрел откуда угодно
+        }
+
+        // Расчет текущей зоны (используется в телеметрии и авто-ассисте)
         Pose checkPose = isBlue ? MirrorTool.toBlue(currentPose) : currentPose;
         boolean inCloseZone = PoseController.isInZone(checkPose);
         boolean inSmallZone = PoseController.isInSmallZone(checkPose);
 
         // ==========================================
-        // 🕹️ ГЕЙМПАД 1: ШАССИ И БАЗОВЫЕ ТОГЛЫ (Водитель)
+        // 🕹️ ГЕЙМПАД 1: ШАССИ И БАЗОВЫЕ ТОГЛЫ
         // ==========================================
 
         // 1. СБРОС POSЕ (КАЛИБРОВКА)
@@ -113,20 +120,19 @@ public class MainTeleOp extends DecodeOpMode {
         }
         if (snapAngle != null) robot.drive.setSnapTarget(snapAngle);
 
-        // 4. ТОГЛ СЛЕДОВАНИЯ БАШНИ НА ПЕРВОМ ДРАЙВЕРЕ (Левый Бампер)
+        // 4. ТОГЛ СЛЕДОВАНИЯ БАШНИ (Левый Бампер)
         if (base.wasJustPressed(GamepadKeys.Button.LEFT_BUMPER)) {
             isTurretTracking = !isTurretTracking;
         }
 
-        // 5. АВТО-АССИСТ (Подъезд к зоне / Авто-выстрел)
-        // 🔥 Убрали правый бампер отсюда, теперь прерывает только движение стиками
+        // 5. АВТО-АССИСТ (Подъезд к зоне / Авто-выстрел на кнопку X)
         boolean hasManualInput = Math.abs(base.getLeftY()) > 0.1 ||
                 Math.abs(base.getLeftX()) > 0.1 ||
                 Math.abs(base.getRightX()) > 0.1;
 
         if (base.wasJustPressed(GamepadKeys.Button.X) && !isAutoDrivingToZone && !isAutoShootingToZone) {
             if (inCloseZone || inSmallZone) {
-                // Если мы хоть в какой-то из зон -> СТРЕЛЯЕМ
+                // Если в зоне -> СТРЕЛЯЕМ
                 gamepad1.rumble(300);
                 isAutoShootingToZone = true;
                 shootingTimer.reset();
@@ -149,10 +155,10 @@ public class MainTeleOp extends DecodeOpMode {
         // Логика фаз автоматики: Езда -> Выстрел -> Отключение
         if (isAutoDrivingToZone) {
             if (hasManualInput) {
-                robot.drive.getFollower().breakFollowing(); // Предохранитель при ручном перехвате движения
+                robot.drive.getFollower().breakFollowing(); // Предохранитель
                 robot.drive.startTeleop();
                 isAutoDrivingToZone = false;
-            } else if (!robot.drive.getFollower().isBusy()) { // Приехали в целевую точку
+            } else if (!robot.drive.getFollower().isBusy()) { // Приехали
                 isAutoDrivingToZone = false;
                 isAutoShootingToZone = true;
                 shootingTimer.reset();
@@ -163,22 +169,21 @@ public class MainTeleOp extends DecodeOpMode {
                 isAutoShootingToZone = false;
             } else if (shootingTimer.milliseconds() < 1000) {
                 robot.drive.getFollower().update();
-                forceOpenStopper = true;
-                intakePower = 1.0;
+                forceOpenStopper = true; // Автоматический выстрел
             } else {
                 robot.drive.startTeleop();
                 isAutoShootingToZone = false;
             }
         }
 
+        // Управление шасси (работает, если не в режиме авто-подъезда)
         if (!isAutoDrivingToZone && !isAutoShootingToZone) {
             robot.drive.drive(base, isBlue);
         }
 
         // ==========================================
-        // 🎯 ГЕЙМПАД 2: ШУТЕР, ХУД, РУЧНОЙ СТРЕЙФ БАШНИ (Оператор)
+        // 🎯 АВТОМАТИКА БАШНИ И ШУТЕРА (Всегда в фоне)
         // ==========================================
-
         Pose actualTargetPose = isBlue ? MirrorTool.toBlue(baseTargetPose) : baseTargetPose;
         Pose futurePose = PoseController.getFuturePose(robot.drive.getFollower());
 
@@ -193,18 +198,8 @@ public class MainTeleOp extends DecodeOpMode {
             robot.turret.setYaw(0);
         }
 
-        boolean isOperatorShooting = forceOpenStopper;
-
-        if (helper.getButton(GamepadKeys.Button.X)) {
-            // Разрешаем ручной выстрел оператора, если робот находится в одной из двух валидных зон
-            if (inCloseZone || inSmallZone) {
-                isOperatorShooting = true;
-            } else {
-                gamepad2.rumble(50);
-            }
-        }
-
-        if (isOperatorShooting) {
+        // Финальный контроль стопора
+        if (forceOpenStopper) {
             robot.stopper.open();
             intakePower = 1.0; // Принудительный оверрайд интейка на 1.0 во время стрельбы
         } else {
@@ -229,6 +224,7 @@ public class MainTeleOp extends DecodeOpMode {
         else if (isAutoShootingToZone) assistStatus = "SHOOTING";
         telemetry.addData("Auto-Assist", assistStatus);
 
+        telemetry.addData("Mode", "SOLO DRIVE 🏎️");
         telemetry.addData("Alliance", isBlue ? "🟦 BLUE" : "🟥 RED");
         telemetry.update();
     }
