@@ -16,11 +16,11 @@ public class MainTeleOp extends DecodeOpMode {
 
     // 1. Координаты для старта (если автонома НЕ БЫЛО)
     private final Pose START_BLUE_POSE = new Pose(72, 72, 0);
-    private final Pose START_RED_POSE = new Pose(136.08, 7.458, Math.PI);
+    private final Pose START_RED_POSE = new Pose(89.2, 7.09, 1.58);
 
     // 2. Координаты для ручного сброса позиции (калибровка во время матча)
     private final Pose RESET_BLUE_POSE = new Pose(10, 10, 0);
-    private final Pose RESET_RED_POSE = new Pose(134, 10, Math.PI);
+    private final Pose RESET_RED_POSE = new Pose(126.62, 84.76, 0);
 
     // Цель башни
     private final Pose baseTargetPose = new Pose(144, 144, 0);
@@ -28,7 +28,6 @@ public class MainTeleOp extends DecodeOpMode {
     private boolean isTurretTracking = false;
     private boolean isAutoDrivingToZone = false;
     private boolean isAutoShootingToZone = false;
-    private boolean isIntakeOn = false;
 
     private final ElapsedTime shootingTimer = new ElapsedTime();
 
@@ -67,8 +66,14 @@ public class MainTeleOp extends DecodeOpMode {
         Pose currentPose = robot.drive.getPose();
         boolean isBlue = GlobalState.isBlueAlliance;
 
-        // Инициализируем базовые значения
-        double intakePower = isIntakeOn ? 1.0 : idleIntakePower;
+        // 🔥 Инициализируем базовые значения интейка (Зажатие Правого Бампера или кнопки А)
+        double intakePower = idleIntakePower;
+        if (base.getButton(GamepadKeys.Button.RIGHT_BUMPER)) {
+            intakePower = 1.0;
+        } else if (base.getButton(GamepadKeys.Button.A)) {
+            intakePower = -1.0;
+        }
+
         boolean forceOpenStopper = false;
 
         // Расчет текущей зоны (используется и водителем, и оператором, и в телеметрии)
@@ -77,7 +82,7 @@ public class MainTeleOp extends DecodeOpMode {
         boolean inSmallZone = PoseController.isInSmallZone(checkPose);
 
         // ==========================================
-        // 🕹️ ГЕЙМПАД 1: ШАССИ (Водитель)
+        // 🕹️ ГЕЙМПАД 1: ШАССИ И БАЗОВЫЕ ТОГЛЫ (Водитель)
         // ==========================================
 
         // 1. СБРОС POSЕ (КАЛИБРОВКА)
@@ -108,20 +113,16 @@ public class MainTeleOp extends DecodeOpMode {
         }
         if (snapAngle != null) robot.drive.setSnapTarget(snapAngle);
 
-        // 4. ИНТЕЙК ВОДИТЕЛЯ (Тогл и Реверс)
-        if (base.wasJustPressed(GamepadKeys.Button.Y)) {
-            isIntakeOn = !isIntakeOn;
-        }
-
-        if (base.getButton(GamepadKeys.Button.A)) {
-            intakePower = -1.0;
+        // 4. ТОГЛ СЛЕДОВАНИЯ БАШНИ НА ПЕРВОМ ДРАЙВЕРЕ (Левый Бампер)
+        if (base.wasJustPressed(GamepadKeys.Button.LEFT_BUMPER)) {
+            isTurretTracking = !isTurretTracking;
         }
 
         // 5. АВТО-АССИСТ (Подъезд к зоне / Авто-выстрел)
+        // 🔥 Убрали правый бампер отсюда, теперь прерывает только движение стиками
         boolean hasManualInput = Math.abs(base.getLeftY()) > 0.1 ||
                 Math.abs(base.getLeftX()) > 0.1 ||
-                Math.abs(base.getRightX()) > 0.1 ||
-                base.getButton(GamepadKeys.Button.RIGHT_BUMPER);
+                Math.abs(base.getRightX()) > 0.1;
 
         if (base.wasJustPressed(GamepadKeys.Button.X) && !isAutoDrivingToZone && !isAutoShootingToZone) {
             if (inCloseZone || inSmallZone) {
@@ -129,10 +130,8 @@ public class MainTeleOp extends DecodeOpMode {
                 gamepad1.rumble(300);
                 isAutoShootingToZone = true;
                 shootingTimer.reset();
-                // Предохранитель сброса snap-поворота
             } else {
-                // Если вне зон -> ЕДЕМ В БОЛЬШУЮ// Предохранитель от фантомных поворотов перед траекторией
-
+                // Если вне зон -> ЕДЕМ В БОЛЬШУЮ
                 Pose targetSnapped = PoseController.getNearestPose(checkPose);
                 Pose finalTarget = isBlue ? MirrorTool.toBlue(targetSnapped) : targetSnapped;
 
@@ -147,13 +146,13 @@ public class MainTeleOp extends DecodeOpMode {
             }
         }
 
-        // Логика фаз: Езда -> Выстрел -> Отключение
+        // Логика фаз автоматики: Езда -> Выстрел -> Отключение
         if (isAutoDrivingToZone) {
             if (hasManualInput) {
-                robot.drive.getFollower().breakFollowing();// Предохранитель при ручном перехвате движения
+                robot.drive.getFollower().breakFollowing(); // Предохранитель при ручном перехвате движения
                 robot.drive.startTeleop();
                 isAutoDrivingToZone = false;
-            } else if (!robot.drive.getFollower().isBusy()) {// Предохранитель по приезду в целевую точку
+            } else if (!robot.drive.getFollower().isBusy()) { // Приехали в целевую точку
                 isAutoDrivingToZone = false;
                 isAutoShootingToZone = true;
                 shootingTimer.reset();
@@ -177,12 +176,8 @@ public class MainTeleOp extends DecodeOpMode {
         }
 
         // ==========================================
-        // 🎯 ГЕЙМПАД 2: ШУТЕР, БАШНЯ, ХУД (Оператор)
+        // 🎯 ГЕЙМПАД 2: ШУТЕР, ХУД, РУЧНОЙ СТРЕЙФ БАШНИ (Оператор)
         // ==========================================
-
-        if (helper.wasJustPressed(GamepadKeys.Button.B)) {
-            isTurretTracking = !isTurretTracking;
-        }
 
         Pose actualTargetPose = isBlue ? MirrorTool.toBlue(baseTargetPose) : baseTargetPose;
         Pose futurePose = PoseController.getFuturePose(robot.drive.getFollower());
@@ -190,8 +185,6 @@ public class MainTeleOp extends DecodeOpMode {
         double distanceToTarget = Math.hypot(actualTargetPose.getX() - futurePose.getX(), actualTargetPose.getY() - futurePose.getY());
 
         robot.hood.setDistance(distanceToTarget);
-
-        // Передаем флаг малой зоны для выбора нужной таблицы интерполяции (LUT)
         robot.shooter.setDistance(distanceToTarget);
 
         if (isTurretTracking) {
@@ -213,11 +206,12 @@ public class MainTeleOp extends DecodeOpMode {
 
         if (isOperatorShooting) {
             robot.stopper.open();
-            intakePower = 1.0;
+            intakePower = 1.0; // Принудительный оверрайд интейка на 1.0 во время стрельбы
         } else {
             robot.stopper.close();
         }
 
+        // Финальная передача мощности на мотор интейка
         robot.intake.setPower(intakePower);
 
         // ==========================================

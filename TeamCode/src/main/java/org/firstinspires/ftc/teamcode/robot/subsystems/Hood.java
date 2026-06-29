@@ -29,6 +29,16 @@ public class Hood {
         hoodLut.add(100, 0.3);
         hoodLut.add(110, 0.3);
         hoodLut.add(120, 0.3);
+        hoodLut.add(132, 0);
+        hoodLut.add(137, 0);
+        hoodLut.add(142, 0);
+        hoodLut.add(147, 0);
+        hoodLut.add(153, 0);
+        hoodLut.add(158, 0);
+        hoodLut.add(165, 0);
+
+
+
     }
 
     public void setPosition(double pos) {

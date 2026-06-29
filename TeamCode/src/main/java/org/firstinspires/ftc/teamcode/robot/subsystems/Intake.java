@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.robot.subsystems;
 
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 public class Intake {
@@ -23,5 +24,8 @@ public class Intake {
 
     public void periodic() {
         // Для интейка тут обычно пусто, но метод обязан быть для структуры
+    }
+    public double getCurrent() {
+        return intakeMotor.getCurrent(CurrentUnit.AMPS); // Укажи свое имя мотора
     }
 }

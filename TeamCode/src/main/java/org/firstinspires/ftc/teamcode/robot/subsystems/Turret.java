@@ -35,7 +35,7 @@ public class Turret {
 
     // rAM — коэффициент упреждения при вращении самого робота
     public static double rAM = -0.14;
-
+    public static double offsetX = -1.81102362;
     public static boolean isEnabled = true;
 
     public void init(HardwareMap hw) {
@@ -90,22 +90,37 @@ public class Turret {
      * Главный метод наведения башни на цель на поле
      * @param angleVel Текущая угловая скорость робота (из Pedro Pathing)
      */
+    /**
+     * Главный метод наведения башни на цель на поле с учетом смещения только НАЗАД/ВПЕРЕД
+     * @param angleVel Текущая угловая скорость робота (из Pedro Pathing)
+     */
     public void face(Pose targetPose, Pose robotPose, double angleVel) {
-        double y = targetPose.getY() - robotPose.getY();
-        double x = targetPose.getX() - robotPose.getX();
+        double heading = robotPose.getHeading();
+
+        // 1. Вычисляем глобальное смещение башни на поле (только по оси X робота)
+        double globalOffsetX = offsetX * Math.cos(heading);
+        double globalOffsetY = offsetX * Math.sin(heading);
+
+        // 2. Находим реальные координаты центра башни на поле
+        double turretX = robotPose.getX() + globalOffsetX;
+        double turretY = robotPose.getY() + globalOffsetY;
+
+        // 3. Считаем катеты треугольника от БАШНИ до ЦЕЛИ (а не от центра робота)
+        double y = targetPose.getY() - turretY;
+        double x = targetPose.getX() - turretX;
 
         // Мертвая зона для угловой скорости шасси
         if (Math.abs(angleVel) < 2.5) {
             angleVel = 0;
         }
 
-        // 1. Считаем чистый угол до цели + упреждение на вращение робота
+        // 4. Считаем чистый угол до цели + упреждение на вращение робота
         double angleToTargetFromCenter = Math.atan2(y, x) + (angleVel * rAM);
 
-        // 2. Переводим глобальный угол поля в локальный угол робота
-        double robotAngleDiff = normalizeAngle(angleToTargetFromCenter - robotPose.getHeading());
+        // 5. Переводим глобальный угол поля в локальный угол робота
+        double robotAngleDiff = normalizeAngle(angleToTargetFromCenter - heading);
 
-        // 3. Отправляем угол на моторы
+        // 6. Отправляем угол на моторы
         setYaw(robotAngleDiff);
     }
 

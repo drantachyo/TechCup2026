@@ -45,7 +45,7 @@ public abstract class DecodeOpMode extends OpMode {
             robot.init(hardwareMap, GlobalState.currentPose);
         } else {
             // Автонома не было: ставим жесткие координаты старта ТелеОпа
-            Pose teleopStartPose = new Pose(10.5, 8.5, 0);
+            Pose teleopStartPose = new Pose(72, 72, 0);
             robot.init(hardwareMap, teleopStartPose);
         }
 

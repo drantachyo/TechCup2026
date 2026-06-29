@@ -25,7 +25,7 @@ public class Shooter {
 
     // Настройки в Panels
     public static double kS = 0.015;
-    public static double kP = 0.007;
+    public static double kP = 0.005;
     public static double kV1 = 0.00038;
     public static double kV2 = 0.00038;
     public static double speed1 = 1100;
@@ -66,17 +66,18 @@ public class Shooter {
         shooterLut.add(50, 1100);
         shooterLut.add(60, 1200);
         shooterLut.add(70, 1250);
-
-        // Транзитная зона (между треугольниками)
-        shooterLut.add(80, 1300);
+        shooterLut.add(80, 1250);
         shooterLut.add(90, 1375);
-        shooterLut.add(100, 1450);
-
-        // Дальняя зона (Small Far Zone)
-        shooterLut.add(110, 1500);
-        shooterLut.add(120, 1550);
-        shooterLut.add(130, 1600);
-        shooterLut.add(140, 1650);
+        shooterLut.add(100, 1400);
+        shooterLut.add(110, 1450);
+        shooterLut.add(120, 1500);
+        shooterLut.add(132, 1650);
+        shooterLut.add(137, 1675);
+        shooterLut.add(142, 1725);
+        shooterLut.add(147, 1750);
+        shooterLut.add(153, 1800);
+        shooterLut.add(158, 1850);
+        shooterLut.add(165, 1860);
     }
 
     public void periodic() {
